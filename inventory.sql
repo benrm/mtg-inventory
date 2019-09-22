@@ -19,7 +19,8 @@ CREATE TABLE IF NOT EXISTS singles (
 CREATE TABLE IF NOT EXISTS requests (
 	id INT NOT NULL PRIMARY KEY,
 	requestor VARCHAR(256) NOT NULL,
-	created	DATETIME NOT NULL,
+	opened DATETIME NOT NULL,
+	closed DATETIME,
 	FOREIGN KEY (requestor) REFERENCES users(username)
 );
 
