@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS singles (
 	id INT NOT NULL PRIMARY KEY,
 	oracle_id VARCHAR(256) NOT NULL,
-	expansion VARCHAR(256),
+	scryfall_id VARCHAR(256),
 	language VARCHAR(256),
 	owner INT NOT NULL,
 	FOREIGN KEY (owner) REFERENCES users(id)
