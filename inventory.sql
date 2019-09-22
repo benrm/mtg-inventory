@@ -3,8 +3,10 @@ CREATE DATABASE IF NOT EXISTS mtg_inventory;
 USE mtg_inventory;
 
 CREATE TABLE IF NOT EXISTS users (
-	username VARCHAR(256) NOT NULL PRIMARY KEY,
-	email VARCHAR(256)
+	id INT NOT NULL PRIMARY KEY,
+	username VARCHAR(256) NOT NULL,
+	email VARCHAR(256),
+	UNIQUE(username)
 );
 
 CREATE TABLE IF NOT EXISTS singles (
@@ -12,16 +14,16 @@ CREATE TABLE IF NOT EXISTS singles (
 	oracle_id VARCHAR(256) NOT NULL,
 	expansion VARCHAR(256),
 	language VARCHAR(256),
-	owner VARCHAR(256) NOT NULL,
-	FOREIGN KEY (owner) REFERENCES users(username)
+	owner INT NOT NULL,
+	FOREIGN KEY (owner) REFERENCES users(id)
 );
 
 CREATE TABLE IF NOT EXISTS requests (
 	id INT NOT NULL PRIMARY KEY,
-	requestor VARCHAR(256) NOT NULL,
+	requestor INT NOT NULL,
 	opened DATETIME NOT NULL,
 	closed DATETIME,
-	FOREIGN KEY (requestor) REFERENCES users(username)
+	FOREIGN KEY (requestor) REFERENCES users(id)
 );
 
 CREATE TABLE IF NOT EXISTS requested_cards (
@@ -34,13 +36,13 @@ CREATE TABLE IF NOT EXISTS requested_cards (
 
 CREATE TABLE IF NOT EXISTS transfers (
 	id INT NOT NULL PRIMARY KEY,
-	from_user VARCHAR(256) NOT NULL,
-	to_user VARCHAR(256) NOT NULL,
+	from_user INT NOT NULL,
+	to_user INT NOT NULL,
 	created DATETIME NOT NULL,
 	executed DATETIME,
 	request_id INT,
-	FOREIGN KEY (from_user) REFERENCES users(username),
-	FOREIGN KEY (to_user) REFERENCES users(username)
+	FOREIGN KEY (from_user) REFERENCES users(id),
+	FOREIGN KEY (to_user) REFERENCES users(id)
 );
 
 CREATE TABLE IF NOT EXISTS transferred_singles (
