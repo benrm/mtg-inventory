@@ -6,16 +6,20 @@ CREATE TABLE IF NOT EXISTS users (
 	id INT NOT NULL PRIMARY KEY,
 	username VARCHAR(256) NOT NULL,
 	email VARCHAR(256),
-	UNIQUE(username)
+	UNIQUE (username)
 );
 
-CREATE TABLE IF NOT EXISTS singles (
-	id INT NOT NULL PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS cards (
+	quantity INT NOT NULL,
 	oracle_id VARCHAR(256) NOT NULL,
-	scryfall_id VARCHAR(256),
-	language VARCHAR(256),
+	scryfall_id VARCHAR(256) NOT NULL,
+	foil BOOLEAN,
+	language VARCHAR(3) NOT NULL,
 	owner INT NOT NULL,
-	FOREIGN KEY (owner) REFERENCES users(id)
+	keeper INT NOT NULL,
+	UNIQUE (scryfall_id, foil, language, owner, keeper),
+	FOREIGN KEY (owner) REFERENCES users(id),
+	FOREIGN KEY (keeper) REFERENCES users(id)
 );
 
 CREATE TABLE IF NOT EXISTS requests (
@@ -30,24 +34,28 @@ CREATE TABLE IF NOT EXISTS requested_cards (
 	request_id INT NOT NULL,
 	oracle_id VARCHAR(256) NOT NULL,
 	quantity INT NOT NULL,
-	UNIQUE(request_id, oracle_id),
+	UNIQUE (request_id, oracle_id),
 	FOREIGN KEY (request_id) REFERENCES requests(id)
 );
 
 CREATE TABLE IF NOT EXISTS transfers (
 	id INT NOT NULL PRIMARY KEY,
-	from_user INT NOT NULL,
 	to_user INT NOT NULL,
+	from_user INT NOT NULL,
 	created DATETIME NOT NULL,
 	executed DATETIME,
 	request_id INT,
+	FOREIGN KEY (to_user) REFERENCES users(id),
 	FOREIGN KEY (from_user) REFERENCES users(id),
-	FOREIGN KEY (to_user) REFERENCES users(id)
+	FOREIGN KEY (request_id) REFERENCES requests(id)
 );
 
-CREATE TABLE IF NOT EXISTS transferred_singles (
+CREATE TABLE IF NOT EXISTS transferred_cards (
+	quantity INT NOT NULL,
 	transfer_id INT NOT NULL,
-	single_id INT NOT NULL,
-	FOREIGN KEY (transfer_id) REFERENCES transfers(id),
-	FOREIGN KEY (single_id) REFERENCES singles(id)
+	scryfall_id VARCHAR(256) NOT NULL,
+	foil BOOLEAN,
+	language VARCHAR(3) NOT NULL,
+	UNIQUE (transfer_id, scryfall_id, foil, language),
+	FOREIGN KEY (transfer_id) REFERENCES transfers(id)
 );
