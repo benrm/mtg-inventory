@@ -1,3 +1,7 @@
+/*
+Package scryfall contains code used to interact with Scryfall data, generally
+through a local cache of the bulk data.
+*/
 package scryfall
 
 import (
@@ -14,6 +18,7 @@ type Date struct {
 	Time  time.Time
 }
 
+// UnmarshalJSON implements json.Unmarshaler
 func (sd *Date) UnmarshalJSON(b []byte) error {
 	var str string
 	err := json.Unmarshal(b, &str)
@@ -73,6 +78,7 @@ type jsonCache struct {
 	scryfallIDMap map[string]*Card
 }
 
+// NewCacheFromJSON creates a Cache from Scryfall bulk JSON data
 func NewCacheFromJSON(reader io.Reader) (Cache, error) {
 	decoder := json.NewDecoder(reader)
 	_, err := decoder.Token()
