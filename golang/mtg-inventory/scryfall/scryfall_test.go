@@ -21,8 +21,23 @@ func TestJSONCache(t *testing.T) {
 		t.Fatalf("Error loading JSON cache: %s", err.Error())
 	}
 
-	_, err = cache.GetCards("Primeval Titan", "mm2", "en", "156")
+	_, err = cache.GetCard("Primeval Titan", "mm2", "en", "")
 	if err != nil {
-		t.Fatalf("Error retrieving 'Primeval Titan' from JSON cache: %s", err.Error())
+		t.Fatalf("Error retrieving 'Primeval Titan' from JSON cache with name, set, and language: %s", err.Error())
+	}
+
+	_, err = cache.GetCard("Primeval Titan", "mm2", "en", "156")
+	if err != nil {
+		t.Fatalf("Error retrieving 'Primeval Titan' from JSON cache with name, set, language, and collector number: %s", err.Error())
+	}
+
+	_, err = cache.GetCardByOracleID("ae83ef2c-960f-4c5b-97cc-52465c687c18")
+	if err != nil {
+		t.Fatalf("Error retrieving 'Primeval Titan' from JSON cache with oracle ID: %s", err.Error())
+	}
+
+	_, err = cache.GetCardByScryfallID("eea2bf31-4320-4605-ab5b-6b32472b82fa")
+	if err != nil {
+		t.Fatalf("Error retrieving 'Primeval Titan' from JSON cache with Scryfall ID: %s", err.Error())
 	}
 }
