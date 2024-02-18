@@ -3,7 +3,7 @@ package inventory
 import "time"
 
 type User struct {
-	ID       int
+	ID       int64
 	Username string
 	Email    string
 }
@@ -22,21 +22,21 @@ type CardRow struct {
 }
 
 type Request struct {
-	ID        int
+	ID        int64
 	Requestor *User
 	Opened    time.Time
 	Closed    time.Time
 }
 
 type RequestedCards struct {
-	RequestID int
+	RequestID int64
 	OracleID  string
 	Quantity  int
 }
 
 type Transfer struct {
-	ID        int
-	RequestID int
+	ID        int64
+	RequestID int64
 	ToUser    *User
 	FromUser  *User
 	Created   time.Time
@@ -44,7 +44,7 @@ type Transfer struct {
 }
 
 type TransferredCards struct {
-	TransferID int
+	TransferID int64
 	Quantity   int
 	ScryfallID string
 	Foil       bool
