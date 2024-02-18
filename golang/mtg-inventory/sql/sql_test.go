@@ -59,12 +59,29 @@ func TestSQL(t *testing.T) {
 
 	var user *User
 	ret := t.Run("TestSQLAddUser", func(t *testing.T) {
-		user, err = AddUser(context.Background(), db, &User{
-			Username: "benrm",
-			Email:    "benrm@github.com",
-		})
+		user, err = AddUser(context.Background(), db, "user", "user@domain.com")
 		if err != nil {
 			t.Fatalf("Failed to add user: %s", err.Error())
+		}
+	})
+	if !ret {
+		t.FailNow()
+	}
+
+	ret = t.Run("TestSQLGetUserByID", func(t *testing.T) {
+		_, err = GetUserByID(context.Background(), db, user.ID)
+		if err != nil {
+			t.Fatalf("Failed to get user by ID: %s", err.Error())
+		}
+	})
+	if !ret {
+		t.FailNow()
+	}
+
+	ret = t.Run("TestSQLGetUserByUsername", func(t *testing.T) {
+		_, err = GetUserByUsername(context.Background(), db, user.Username)
+		if err != nil {
+			t.Fatalf("Failed to get user by username: %s", err.Error())
 		}
 	})
 	if !ret {
