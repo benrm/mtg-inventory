@@ -95,10 +95,16 @@ type cardsWithDefault struct {
 	All     []*Card
 }
 
+type cardKey struct {
+	Name     string
+	Set      string
+	Language string
+}
+
 type jsonCache struct {
-	ByNameBySetByLang map[string]map[string]map[string]*cardsWithDefault
-	OracleIDMap       map[string]*cardsWithDefault
-	ScryfallIDMap     map[string]*Card
+	KeyMap        map[cardKey]*cardsWithDefault
+	OracleIDMap   map[string]*cardsWithDefault
+	ScryfallIDMap map[string]*Card
 }
 
 // NewCacheFromJSON creates a Cache from Scryfall bulk JSON data
@@ -110,9 +116,9 @@ func NewCacheFromJSON(reader io.Reader) (Cache, error) {
 	}
 
 	cache := &jsonCache{
-		ByNameBySetByLang: make(map[string]map[string]map[string]*cardsWithDefault),
-		OracleIDMap:       make(map[string]*cardsWithDefault),
-		ScryfallIDMap:     make(map[string]*Card),
+		KeyMap:        make(map[cardKey]*cardsWithDefault),
+		OracleIDMap:   make(map[string]*cardsWithDefault),
+		ScryfallIDMap: make(map[string]*Card),
 	}
 
 	for decoder.More() {
@@ -122,18 +128,17 @@ func NewCacheFromJSON(reader io.Reader) (Cache, error) {
 			return nil, fmt.Errorf("error reading after %d bytes: %w", decoder.InputOffset(), err)
 		}
 
-		if _, exists := cache.ByNameBySetByLang[card.Name]; !exists {
-			cache.ByNameBySetByLang[card.Name] = make(map[string]map[string]*cardsWithDefault)
+		key := cardKey{
+			Name:     card.Name,
+			Set:      card.Set,
+			Language: card.Language,
 		}
-		if _, exists := cache.ByNameBySetByLang[card.Set]; !exists {
-			cache.ByNameBySetByLang[card.Name][card.Set] = make(map[string]*cardsWithDefault)
-		}
-		if _, exists := cache.ByNameBySetByLang[card.Name][card.Set][card.Language]; !exists {
-			cache.ByNameBySetByLang[card.Name][card.Set][card.Language] = &cardsWithDefault{
+		if _, exists := cache.KeyMap[key]; !exists {
+			cache.KeyMap[key] = &cardsWithDefault{
 				All: make([]*Card, 0),
 			}
 		}
-		cache.ByNameBySetByLang[card.Name][card.Set][card.Language].All = append(cache.ByNameBySetByLang[card.Name][card.Set][card.Language].All, &card)
+		cache.KeyMap[key].All = append(cache.KeyMap[key].All, &card)
 
 		var oracleID string
 		if card.OracleID == "" {
@@ -155,12 +160,8 @@ func NewCacheFromJSON(reader io.Reader) (Cache, error) {
 		cache.ScryfallIDMap[card.ID] = &card
 	}
 
-	for _, bySetByLang := range cache.ByNameBySetByLang {
-		for _, byLang := range bySetByLang {
-			for _, withDefault := range byLang {
-				withDefault.Default = getPreferredCard(withDefault.All)
-			}
-		}
+	for _, withDefault := range cache.KeyMap {
+		withDefault.Default = getPreferredCard(withDefault.All)
 	}
 
 	for _, byOracleID := range cache.OracleIDMap {
@@ -171,17 +172,18 @@ func NewCacheFromJSON(reader io.Reader) (Cache, error) {
 }
 
 func (jc *jsonCache) GetCard(name, set, language, collectorNumber string) (*Card, error) {
-	if bySetByLang, exists := jc.ByNameBySetByLang[name]; exists {
-		if byLang, exists := bySetByLang[set]; exists {
-			if withDefault, exists := byLang[language]; exists {
-				if collectorNumber == "" {
-					return withDefault.Default, nil
-				}
-				for _, card := range withDefault.All {
-					if collectorNumber == card.CollectorNumber {
-						return card, nil
-					}
-				}
+	key := cardKey{
+		Name:     name,
+		Set:      set,
+		Language: language,
+	}
+	if withDefault, exists := jc.KeyMap[key]; exists {
+		if collectorNumber == "" {
+			return withDefault.Default, nil
+		}
+		for _, card := range withDefault.All {
+			if collectorNumber == card.CollectorNumber {
+				return card, nil
 			}
 		}
 	}
