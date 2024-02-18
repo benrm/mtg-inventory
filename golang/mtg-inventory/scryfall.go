@@ -128,10 +128,20 @@ func NewScryfallCacheFromJSON(reader io.Reader) (ScryfallCache, error) {
 		}
 		cache.nameMap[card.Name][card.Set][card.Language][card.CollectorNumber] = append(cache.nameMap[card.Name][card.Set][card.Language][card.CollectorNumber], &card)
 
-		if _, exists := cache.oracleIDMap[card.OracleID]; !exists {
-			cache.oracleIDMap[card.OracleID] = make([]*ScryfallCard, 0)
+		var oracleID string
+		if card.OracleID == "" {
+			if len(card.CardFaces) > 0 {
+				oracleID = card.CardFaces[0].OracleID
+			} else {
+				return nil, fmt.Errorf("card with empty oracle ID after %d bytes", decoder.InputOffset())
+			}
+		} else {
+			oracleID = card.OracleID
 		}
-		cache.oracleIDMap[card.OracleID] = append(cache.oracleIDMap[card.OracleID], &card)
+		if _, exists := cache.oracleIDMap[oracleID]; !exists {
+			cache.oracleIDMap[oracleID] = make([]*ScryfallCard, 0)
+		}
+		cache.oracleIDMap[oracleID] = append(cache.oracleIDMap[oracleID], &card)
 
 		cache.scryfallIDMap[card.ID] = &card
 	}
