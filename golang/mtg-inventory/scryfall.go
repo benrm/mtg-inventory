@@ -8,6 +8,29 @@ import (
 	"time"
 )
 
+// ScryfallDate represents a date as represented in Scryfall
+type ScryfallDate struct {
+	Value string
+	Time  time.Time
+}
+
+func (sd *ScryfallDate) UnmarshalJSON(b []byte) error {
+	var str string
+	err := json.Unmarshal(b, &str)
+	if err != nil {
+		return fmt.Errorf("error unmarshaling date %q into string: %w", b, err)
+	}
+	t, err := time.Parse(time.DateOnly, str)
+	if err != nil {
+		return fmt.Errorf("error parsing string %q as date: %w", str, err)
+	}
+	*sd = ScryfallDate{
+		Value: str,
+		Time:  t,
+	}
+	return nil
+}
+
 // ScryfallCardFace represents one of the faces of a ScryfallCard
 type ScryfallCardFace struct {
 	Name     string `json:"name"`
@@ -17,63 +40,20 @@ type ScryfallCardFace struct {
 // ScryfallCard represents a card object retrieved from Scryfall
 type ScryfallCard struct {
 	// Core Card Fields
-	ID       string
-	Language string
-	OracleID string
+	ID       string `json:"id"`
+	Language string `json:"lang"`
+	OracleID string `json:"oracle_id"`
 
 	// Gameplay fields
-	Name string
+	Name string `json:"name"`
 
 	// Print fields
-	CollectorNumber string
-	ReleasedAt      time.Time
-	Set             string
+	CollectorNumber string       `json:"collector_number"`
+	ReleasedAt      ScryfallDate `json:"released_at"`
+	Set             string       `json:"set"`
 
 	// Card Face Objects
-	CardFaces []ScryfallCardFace
-}
-
-// UnmarshalJSON implements json.Unmarshaler
-func (sc *ScryfallCard) UnmarshalJSON(b []byte) error {
-	s := struct {
-		// Core Card Fields
-		ID       string `json:"id"`
-		Language string `json:"lang"`
-		OracleID string `json:"oracle_id"`
-
-		// Gameplay fields
-		Name string `json:"name"`
-
-		// Print fields
-		CollectorNumber string `json:"collector_number"`
-		ReleasedAt      string `json:"released_at"`
-		Set             string `json:"set"`
-
-		// Card Face Objects
-		CardFaces []ScryfallCardFace `json:"card_faces"`
-	}{}
-
-	err := json.Unmarshal(b, &s)
-	if err != nil {
-		return fmt.Errorf("error unmarshaling Scryfall card into anonymous struct: %w", err)
-	}
-
-	t, err := time.Parse("2006-01-02", s.ReleasedAt)
-	if err != nil {
-		return fmt.Errorf("error parsing released date from Scryfall card: %w", err)
-	}
-
-	*sc = ScryfallCard{
-		ID:              s.ID,
-		Language:        s.Language,
-		OracleID:        s.OracleID,
-		Name:            s.Name,
-		CollectorNumber: s.CollectorNumber,
-		ReleasedAt:      t,
-		Set:             s.Set,
-		CardFaces:       s.CardFaces,
-	}
-	return nil
+	CardFaces []ScryfallCardFace `json:"card_faces"`
 }
 
 // ErrNotInScryfallCache should be returned when a card or cards is not in a
