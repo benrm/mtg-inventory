@@ -128,4 +128,14 @@ func TestSQL(t *testing.T) {
 	if !ret {
 		t.FailNow()
 	}
+
+	ret = t.Run("TestSQLGetCardsByKeeper", func(t *testing.T) {
+		_, err = GetCardsByKeeper(context.Background(), db, user, 10, 0)
+		if err != nil {
+			t.Fatalf("Failed to get cards by keeper: %s", err.Error())
+		}
+	})
+	if !ret {
+		t.FailNow()
+	}
 }
