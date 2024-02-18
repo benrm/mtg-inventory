@@ -58,9 +58,7 @@ CREATE TABLE IF NOT EXISTS transferred_cards (
 	scryfall_id VARCHAR(256) NOT NULL,
 	foil BOOLEAN,
 	owner INT NOT NULL,
-	keeper INT NOT NULL,
-	UNIQUE (transfer_id, scryfall_id, foil, owner, keeper),
+	UNIQUE (transfer_id, scryfall_id, foil, owner),
 	FOREIGN KEY (transfer_id) REFERENCES transfers(id),
-	FOREIGN KEY (owner) REFERENCES users(id),
-	FOREIGN KEY (keeper) REFERENCES users(id)
+	FOREIGN KEY (owner) REFERENCES users(id)
 );

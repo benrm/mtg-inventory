@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 )
 
 func GetCardsByOwner(ctx context.Context, db *sql.DB, owner *User, limit, offset int) (_ []*CardRow, err error) {
@@ -130,7 +131,7 @@ func AddCards(ctx context.Context, db *sql.DB, cardRows []*CardRow) (err error) 
 		}
 	}()
 
-	insertStmt, err := tx.PrepareContext(ctx, `INSERT INTO cards (quantity, english_name, oracle_id, scryfall_id, foil, owner, keeper)
+	upsertStmt, err := tx.PrepareContext(ctx, `INSERT INTO cards (quantity, english_name, oracle_id, scryfall_id, foil, owner, keeper)
 VALUES (?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE quantity = quantity + ?
 `)
 	if err != nil {
@@ -138,7 +139,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE quantity = quantity + ?
 	}
 
 	for _, cardRow := range cardRows {
-		_, err := insertStmt.Exec(
+		_, err := upsertStmt.Exec(
 			cardRow.Quantity,
 			cardRow.Card.EnglishName,
 			cardRow.Card.OracleID,
@@ -154,4 +155,134 @@ VALUES (?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE quantity = quantity + ?
 	}
 
 	return tx.Commit()
+}
+
+func TransferCards(ctx context.Context, db *sql.DB, toUser *User, fromUser *User, request *Request, transferRows []*TransferRow) (_ *Transfer, err error) {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("error transferring cards: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			rollbackErr := tx.Rollback()
+			if rollbackErr != nil {
+				err = fmt.Errorf("error transferring cards: %w, unable to rollback: %s", err, rollbackErr)
+			} else {
+				err = fmt.Errorf("error transferring cards: %w", err)
+			}
+		}
+	}()
+
+	now := time.Now()
+
+	var result sql.Result
+	if request == nil {
+		insertTransfer, err := tx.PrepareContext(ctx, `INSERT INTO transfers (to_user, from_user, created)
+VALUES (?, ?, ?)
+`)
+		if err != nil {
+			return nil, fmt.Errorf("failed to prepare insert transfer without request id: %w", err)
+		}
+
+		result, err = insertTransfer.Exec(toUser.ID, fromUser.ID, now)
+		if err != nil {
+			return nil, fmt.Errorf("failed to insert transfer without request id: %w", err)
+		}
+	} else {
+		insertTransfer, err := tx.PrepareContext(ctx, `INSERT INTO transfers (to_user, from_user, request_id, created)
+VALUES (?, ?, ?, ?)
+`)
+		if err != nil {
+			return nil, fmt.Errorf("failed to prepare insert transfer with request id: %w", err)
+		}
+
+		result, err = insertTransfer.Exec(toUser.ID, fromUser.ID, request.ID, now)
+		if err != nil {
+			return nil, fmt.Errorf("failed to insert transfer with request id: %w", err)
+		}
+	}
+	id, err := result.LastInsertId()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get last insert id of transfer: %w", err)
+	}
+	transfer := &Transfer{
+		ID:       id,
+		ToUser:   toUser,
+		FromUser: fromUser,
+		Created:  now,
+		Cards:    transferRows,
+	}
+	if request != nil {
+		transfer.RequestID = request.ID
+	}
+
+	selectQuantityStmt, err := tx.PrepareContext(ctx, `SELECT quantity
+FROM cards
+WHERE scryfall_id = ? AND foil = ? AND owner = ? AND keeper =  ?
+`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare select for cards: %w", err)
+	}
+
+	updateCard, err := tx.PrepareContext(ctx, `UPDATE cards
+SET quantity = quantity - ?
+WHERE scryfall_id = ? AND foil = ? AND owner = ? AND keeper = ?
+`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare update for cards: %w", err)
+	}
+
+	upsertStmt, err := tx.PrepareContext(ctx, `INSERT INTO cards (quantity, english_name, oracle_id, scryfall_id, foil, owner, keeper)
+VALUES (?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE quantity = quantity + ?
+`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare upsert for cards: %w", err)
+	}
+
+	upsertTransferCardStmt, err := tx.PrepareContext(ctx, `INSERT INTO transferred_cards (transfer_id, quantity, english_name, scryfall_id, foil, owner)
+VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE quantity = quantity + ?
+`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare upsert for transferred_cards: %w", err)
+	}
+
+	for _, transferRow := range transferRows {
+		row := selectQuantityStmt.QueryRow(
+			transferRow.Card.ScryfallID,
+			transferRow.Card.Foil,
+			transferRow.Owner.ID,
+			fromUser.ID,
+		)
+		var quantity int
+		err = row.Scan(&quantity)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan select row: %s", err)
+		}
+		if quantity < transferRow.Quantity {
+			return nil, fmt.Errorf("too few cards to transfer %d copies of %s",
+				transferRow.Quantity, transferRow.Card.ScryfallID)
+		}
+
+		_, err = updateCard.Exec(transferRow.Quantity, transferRow.Card.ScryfallID, transferRow.Card.Foil, transferRow.Owner.ID, fromUser.ID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to update cards: %w", err)
+		}
+
+		_, err = upsertStmt.Exec(transferRow.Quantity, transferRow.Card.EnglishName, transferRow.Card.OracleID, transferRow.Card.ScryfallID, transferRow.Card.Foil, transferRow.Owner.ID, toUser.ID, transferRow.Quantity)
+		if err != nil {
+			return nil, fmt.Errorf("failed to upsert cards: %w", err)
+		}
+
+		_, err = upsertTransferCardStmt.Exec(transfer.ID, transferRow.Quantity, transferRow.Card.EnglishName, transferRow.Card.ScryfallID, transferRow.Card.Foil, transferRow.Owner.ID, transferRow.Quantity)
+		if err != nil {
+			return nil, fmt.Errorf("failed to upsert transferred_cards: %w", err)
+		}
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return nil, err
+	}
+
+	return transfer, nil
 }

@@ -30,9 +30,10 @@ type Request struct {
 }
 
 type RequestedCards struct {
-	RequestID int64
-	OracleID  string
-	Quantity  int
+	RequestID   int64
+	EnglishName string
+	OracleID    string
+	Quantity    int
 }
 
 type Transfer struct {
@@ -42,11 +43,11 @@ type Transfer struct {
 	FromUser  *User
 	Created   time.Time
 	Executed  time.Time
+	Cards     []*TransferRow
 }
 
-type TransferredCards struct {
-	TransferID int64
-	Quantity   int
-	ScryfallID string
-	Foil       bool
+type TransferRow struct {
+	Quantity int
+	Card     *Card
+	Owner    *User
 }
