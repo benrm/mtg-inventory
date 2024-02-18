@@ -6,23 +6,14 @@ import (
 	"fmt"
 )
 
-func GetUserByID(ctx context.Context, db *sql.DB, id int64) (*User, error) {
-	tx, err := db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
-	if err != nil {
-		return nil, fmt.Errorf("error getting user: %w", err)
-	}
+func GetUserByID(ctx context.Context, db *sql.DB, id int64) (_ *User, err error) {
 	defer func() {
 		if err != nil {
-			rollbackErr := tx.Rollback()
-			if rollbackErr != nil {
-				err = fmt.Errorf("error adding user: %w, unable to rollback: %s", err, rollbackErr)
-			} else {
-				err = fmt.Errorf("error adding user: %w", err)
-			}
+			err = fmt.Errorf("error adding user: %w", err)
 		}
 	}()
 
-	queryStmt, err := tx.PrepareContext(ctx, "SELECT username, email FROM users WHERE id = ?")
+	queryStmt, err := db.PrepareContext(ctx, "SELECT username, email FROM users WHERE id = ?")
 	if err != nil {
 		return nil, err
 	}
@@ -34,11 +25,6 @@ func GetUserByID(ctx context.Context, db *sql.DB, id int64) (*User, error) {
 		return nil, err
 	}
 
-	err = tx.Commit()
-	if err != nil {
-		return nil, err
-	}
-
 	return &User{
 		ID:       id,
 		Username: username,
@@ -46,23 +32,14 @@ func GetUserByID(ctx context.Context, db *sql.DB, id int64) (*User, error) {
 	}, nil
 }
 
-func GetUserByUsername(ctx context.Context, db *sql.DB, username string) (*User, error) {
-	tx, err := db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
-	if err != nil {
-		return nil, fmt.Errorf("error getting user: %w", err)
-	}
+func GetUserByUsername(ctx context.Context, db *sql.DB, username string) (_ *User, err error) {
 	defer func() {
 		if err != nil {
-			rollbackErr := tx.Rollback()
-			if rollbackErr != nil {
-				err = fmt.Errorf("error adding user: %w, unable to rollback: %s", err, rollbackErr)
-			} else {
-				err = fmt.Errorf("error adding user: %w", err)
-			}
+			err = fmt.Errorf("error adding user: %w", err)
 		}
 	}()
 
-	queryStmt, err := tx.PrepareContext(ctx, "SELECT id, email FROM users WHERE username = ?")
+	queryStmt, err := db.PrepareContext(ctx, "SELECT id, email FROM users WHERE username = ?")
 	if err != nil {
 		return nil, err
 	}
@@ -71,11 +48,6 @@ func GetUserByUsername(ctx context.Context, db *sql.DB, username string) (*User,
 	var email string
 	row := queryStmt.QueryRow(username)
 	err = row.Scan(&id, &email)
-	if err != nil {
-		return nil, err
-	}
-
-	err = tx.Commit()
 	if err != nil {
 		return nil, err
 	}
