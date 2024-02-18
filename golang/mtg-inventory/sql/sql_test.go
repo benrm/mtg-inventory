@@ -115,13 +115,13 @@ func TestSQL(t *testing.T) {
 		t.Fatalf("Failed to add user: %s", err.Error())
 	}
 
-	fakeTransferRow := &TransferRow{
+	fakeTransferRow := &TransferredCards{
 		Quantity: 1,
 		Card:     fakeCard,
 		Owner:    user1,
 	}
 
-	_, err = TransferCards(context.Background(), db, user2, user1, nil, []*TransferRow{
+	_, err = TransferCards(context.Background(), db, user2, user1, nil, []*TransferredCards{
 		fakeTransferRow,
 	})
 	if err != nil {

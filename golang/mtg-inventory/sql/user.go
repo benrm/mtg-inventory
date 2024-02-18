@@ -6,6 +6,7 @@ import (
 	"fmt"
 )
 
+// GetUserByID gets a User by its ID
 func GetUserByID(ctx context.Context, db *sql.DB, id int64) (_ *User, err error) {
 	defer func() {
 		if err != nil {
@@ -15,14 +16,14 @@ func GetUserByID(ctx context.Context, db *sql.DB, id int64) (_ *User, err error)
 
 	queryStmt, err := db.PrepareContext(ctx, "SELECT username, email FROM users WHERE id = ?")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to prepare select on users: %w", err)
 	}
 
 	var username, email string
 	row := queryStmt.QueryRow(id)
 	err = row.Scan(&username, &email)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to scan row from select on users: %w", err)
 	}
 
 	return &User{
@@ -32,6 +33,7 @@ func GetUserByID(ctx context.Context, db *sql.DB, id int64) (_ *User, err error)
 	}, nil
 }
 
+// GetUserByUsername gets a User by its username
 func GetUserByUsername(ctx context.Context, db *sql.DB, username string) (_ *User, err error) {
 	defer func() {
 		if err != nil {
@@ -41,7 +43,7 @@ func GetUserByUsername(ctx context.Context, db *sql.DB, username string) (_ *Use
 
 	queryStmt, err := db.PrepareContext(ctx, "SELECT id, email FROM users WHERE username = ?")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to prepare select on users: %w", err)
 	}
 
 	var id int64
@@ -49,7 +51,7 @@ func GetUserByUsername(ctx context.Context, db *sql.DB, username string) (_ *Use
 	row := queryStmt.QueryRow(username)
 	err = row.Scan(&id, &email)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to scan row from select on users: %w", err)
 	}
 
 	return &User{
@@ -59,6 +61,7 @@ func GetUserByUsername(ctx context.Context, db *sql.DB, username string) (_ *Use
 	}, nil
 }
 
+// AddUser adds a User given its username and email
 func AddUser(ctx context.Context, db *sql.DB, username, email string) (*User, error) {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
@@ -77,22 +80,22 @@ func AddUser(ctx context.Context, db *sql.DB, username, email string) (*User, er
 
 	insertStmt, err := tx.PrepareContext(ctx, "INSERT INTO users (username, email) VALUES (?, ?)")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to prepare insert on users: %w", err)
 	}
 
 	result, err := insertStmt.Exec(username, email)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to insert on users: %w", err)
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to commit insert on users: %w", err)
 	}
 
 	id, err := result.LastInsertId()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get last insert id from insert on users: %w", err)
 	}
 
 	return &User{

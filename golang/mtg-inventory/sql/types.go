@@ -2,12 +2,14 @@ package sql
 
 import "time"
 
+// User represents a user in the users table
 type User struct {
 	ID       int64
 	Username string
 	Email    string
 }
 
+// Card represents a Card
 type Card struct {
 	EnglishName string
 	OracleID    string
@@ -15,6 +17,7 @@ type Card struct {
 	Foil        bool
 }
 
+// CardRow represents a row in the cards table
 type CardRow struct {
 	Quantity int
 	Card     *Card
@@ -22,6 +25,7 @@ type CardRow struct {
 	Keeper   *User
 }
 
+// Request represents a row in the requests table
 type Request struct {
 	ID        int64
 	Requestor *User
@@ -29,6 +33,7 @@ type Request struct {
 	Closed    time.Time
 }
 
+// RequestedCards represents a row in the requested_cards table
 type RequestedCards struct {
 	RequestID   int64
 	EnglishName string
@@ -36,6 +41,7 @@ type RequestedCards struct {
 	Quantity    int
 }
 
+// Transfer represents a row in the transfers table
 type Transfer struct {
 	ID        int64
 	RequestID int64
@@ -43,10 +49,11 @@ type Transfer struct {
 	FromUser  *User
 	Created   time.Time
 	Executed  time.Time
-	Cards     []*TransferRow
+	Cards     []*TransferredCards
 }
 
-type TransferRow struct {
+// TransferredCards represents a row in the transferred_cards table
+type TransferredCards struct {
 	Quantity int
 	Card     *Card
 	Owner    *User

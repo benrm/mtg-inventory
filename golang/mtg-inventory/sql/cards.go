@@ -7,6 +7,7 @@ import (
 	"time"
 )
 
+// GetCardsByOwner gets cards based on their owner
 func GetCardsByOwner(ctx context.Context, db *sql.DB, owner *User, limit, offset int) (_ []*CardRow, err error) {
 	defer func() {
 		if err != nil {
@@ -22,12 +23,12 @@ func GetCardsByOwner(ctx context.Context, db *sql.DB, owner *User, limit, offset
 	LIMIT ? OFFSET ?
 `)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to prepare select for cards: %w", err)
 	}
 
 	queryRows, err := queryStmt.Query(owner.ID, limit, offset)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to select for cards: %w", err)
 	}
 
 	cardRows := make([]*CardRow, 0)
@@ -38,7 +39,7 @@ func GetCardsByOwner(ctx context.Context, db *sql.DB, owner *User, limit, offset
 		var foil bool
 		err = queryRows.Scan(&quantity, &englishName, &oracleID, &scryfallID, &foil, &keeperID, &keeperUsername, &keeperEmail)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to scan select on cards: %w", err)
 		}
 		cardRow := &CardRow{
 			Quantity: quantity,
@@ -61,6 +62,7 @@ func GetCardsByOwner(ctx context.Context, db *sql.DB, owner *User, limit, offset
 	return cardRows, nil
 }
 
+// GetCardsByKeeper gets cards based on their keeper
 func GetCardsByKeeper(ctx context.Context, db *sql.DB, keeper *User, limit, offset int) (_ []*CardRow, err error) {
 	defer func() {
 		if err != nil {
@@ -76,12 +78,12 @@ func GetCardsByKeeper(ctx context.Context, db *sql.DB, keeper *User, limit, offs
 	LIMIT ? OFFSET ?
 `)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to prepare select for cards: %w", err)
 	}
 
 	queryRows, err := queryStmt.Query(keeper.ID, limit, offset)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to select for cards: %w", err)
 	}
 
 	cardRows := make([]*CardRow, 0)
@@ -92,7 +94,7 @@ func GetCardsByKeeper(ctx context.Context, db *sql.DB, keeper *User, limit, offs
 		var foil bool
 		err = queryRows.Scan(&quantity, &englishName, &oracleID, &scryfallID, &foil, &ownerID, &ownerUsername, &ownerEmail)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to scan select on cards: %w", err)
 		}
 		cardRow := &CardRow{
 			Quantity: quantity,
@@ -115,6 +117,7 @@ func GetCardsByKeeper(ctx context.Context, db *sql.DB, keeper *User, limit, offs
 	return cardRows, nil
 }
 
+// AddCards adds cards given a slice of them
 func AddCards(ctx context.Context, db *sql.DB, cardRows []*CardRow) (err error) {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
@@ -135,7 +138,7 @@ func AddCards(ctx context.Context, db *sql.DB, cardRows []*CardRow) (err error) 
 VALUES (?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE quantity = quantity + ?
 `)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to prepare insert on cards: %w", err)
 	}
 
 	for _, cardRow := range cardRows {
@@ -150,14 +153,20 @@ VALUES (?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE quantity = quantity + ?
 			cardRow.Quantity,
 		)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to execute insert on cards: %w", err)
 		}
 	}
 
-	return tx.Commit()
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("failed to commit inserts on cards: %w", err)
+	}
+
+	return nil
 }
 
-func TransferCards(ctx context.Context, db *sql.DB, toUser *User, fromUser *User, request *Request, transferRows []*TransferRow) (_ *Transfer, err error) {
+// TransferCards transfers cards between two users
+func TransferCards(ctx context.Context, db *sql.DB, toUser *User, fromUser *User, request *Request, transferRows []*TransferredCards) (_ *Transfer, err error) {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error transferring cards: %w", err)
@@ -281,7 +290,7 @@ VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE quantity = quantity + ?
 
 	err = tx.Commit()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to commit inserts and updates on multiple tables: %w", err)
 	}
 
 	return transfer, nil
