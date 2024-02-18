@@ -26,7 +26,7 @@ func GetCardsByOwner(ctx context.Context, db *sql.DB, owner *User, limit, offset
 		return nil, fmt.Errorf("failed to prepare select for cards: %w", err)
 	}
 
-	queryRows, err := queryStmt.Query(owner.ID, limit, offset)
+	queryRows, err := queryStmt.QueryContext(ctx, owner.ID, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to select for cards: %w", err)
 	}
@@ -81,7 +81,7 @@ func GetCardsByKeeper(ctx context.Context, db *sql.DB, keeper *User, limit, offs
 		return nil, fmt.Errorf("failed to prepare select for cards: %w", err)
 	}
 
-	queryRows, err := queryStmt.Query(keeper.ID, limit, offset)
+	queryRows, err := queryStmt.QueryContext(ctx, keeper.ID, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to select for cards: %w", err)
 	}
@@ -142,7 +142,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE quantity = quantity + ?
 	}
 
 	for _, cardRow := range cardRows {
-		_, err := upsertStmt.Exec(
+		_, err := upsertStmt.ExecContext(ctx,
 			cardRow.Quantity,
 			cardRow.Card.EnglishName,
 			cardRow.Card.OracleID,
@@ -193,7 +193,7 @@ VALUES (?, ?, ?)
 			return nil, fmt.Errorf("failed to prepare insert transfer without request id: %w", err)
 		}
 
-		result, err = insertTransfer.Exec(toUser.ID, fromUser.ID, now)
+		result, err = insertTransfer.ExecContext(ctx, toUser.ID, fromUser.ID, now)
 		if err != nil {
 			return nil, fmt.Errorf("failed to insert transfer without request id: %w", err)
 		}
@@ -205,7 +205,7 @@ VALUES (?, ?, ?, ?)
 			return nil, fmt.Errorf("failed to prepare insert transfer with request id: %w", err)
 		}
 
-		result, err = insertTransfer.Exec(toUser.ID, fromUser.ID, request.ID, now)
+		result, err = insertTransfer.ExecContext(ctx, toUser.ID, fromUser.ID, request.ID, now)
 		if err != nil {
 			return nil, fmt.Errorf("failed to insert transfer with request id: %w", err)
 		}
@@ -272,17 +272,17 @@ VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE quantity = quantity + ?
 				transferRow.Quantity, transferRow.Card.ScryfallID)
 		}
 
-		_, err = updateCardStmt.Exec(transferRow.Quantity, transferRow.Card.ScryfallID, transferRow.Card.Foil, transferRow.Owner.ID, fromUser.ID)
+		_, err = updateCardStmt.ExecContext(ctx, transferRow.Quantity, transferRow.Card.ScryfallID, transferRow.Card.Foil, transferRow.Owner.ID, fromUser.ID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to update cards: %w", err)
 		}
 
-		_, err = upsertCardStmt.Exec(transferRow.Quantity, transferRow.Card.EnglishName, transferRow.Card.OracleID, transferRow.Card.ScryfallID, transferRow.Card.Foil, transferRow.Owner.ID, toUser.ID, transferRow.Quantity)
+		_, err = upsertCardStmt.ExecContext(ctx, transferRow.Quantity, transferRow.Card.EnglishName, transferRow.Card.OracleID, transferRow.Card.ScryfallID, transferRow.Card.Foil, transferRow.Owner.ID, toUser.ID, transferRow.Quantity)
 		if err != nil {
 			return nil, fmt.Errorf("failed to upsert cards: %w", err)
 		}
 
-		_, err = upsertTransferCardStmt.Exec(transfer.ID, transferRow.Quantity, transferRow.Card.EnglishName, transferRow.Card.ScryfallID, transferRow.Card.Foil, transferRow.Owner.ID, transferRow.Quantity)
+		_, err = upsertTransferCardStmt.ExecContext(ctx, transfer.ID, transferRow.Quantity, transferRow.Card.EnglishName, transferRow.Card.ScryfallID, transferRow.Card.Foil, transferRow.Owner.ID, transferRow.Quantity)
 		if err != nil {
 			return nil, fmt.Errorf("failed to upsert transferred_cards: %w", err)
 		}

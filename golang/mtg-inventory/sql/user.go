@@ -83,7 +83,7 @@ func AddUser(ctx context.Context, db *sql.DB, username, email string) (*User, er
 		return nil, fmt.Errorf("failed to prepare insert on users: %w", err)
 	}
 
-	result, err := insertStmt.Exec(username, email)
+	result, err := insertStmt.ExecContext(ctx, username, email)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert on users: %w", err)
 	}
