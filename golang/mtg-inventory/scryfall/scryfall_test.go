@@ -1,4 +1,4 @@
-package inventory
+package scryfall
 
 import (
 	"errors"
@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestJSONScryfallCache(t *testing.T) {
+func TestJSONCache(t *testing.T) {
 	scryfallBulkData, err := os.Open("./testdata/all-cards.json")
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -16,13 +16,13 @@ func TestJSONScryfallCache(t *testing.T) {
 		}
 	}
 
-	scryfallCache, err := NewScryfallCacheFromJSON(scryfallBulkData)
+	cache, err := NewCacheFromJSON(scryfallBulkData)
 	if err != nil {
-		t.Fatalf("Error loading JSON Scryfall cache: %s", err.Error())
+		t.Fatalf("Error loading JSON cache: %s", err.Error())
 	}
 
-	_, err = scryfallCache.GetCards("Primeval Titan", "mm2", "en", "156")
+	_, err = cache.GetCards("Primeval Titan", "mm2", "en", "156")
 	if err != nil {
-		t.Fatalf("Error retrieving 'Primeval Titan' from JSON Scryfall cache: %s", err.Error())
+		t.Fatalf("Error retrieving 'Primeval Titan' from JSON cache: %s", err.Error())
 	}
 }
