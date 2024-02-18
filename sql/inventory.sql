@@ -14,7 +14,6 @@ CREATE TABLE IF NOT EXISTS cards (
 	oracle_id VARCHAR(256) NOT NULL,
 	scryfall_id VARCHAR(256) NOT NULL,
 	foil BOOLEAN,
-	language VARCHAR(3) NOT NULL,
 	owner INT NOT NULL,
 	keeper INT NOT NULL,
 	UNIQUE (scryfall_id, foil, language, owner, keeper),
@@ -40,22 +39,21 @@ CREATE TABLE IF NOT EXISTS requested_cards (
 
 CREATE TABLE IF NOT EXISTS transfers (
 	id INT NOT NULL PRIMARY KEY,
+	request_id INT,
 	to_user INT NOT NULL,
 	from_user INT NOT NULL,
 	created DATETIME NOT NULL,
 	executed DATETIME,
-	request_id INT,
 	FOREIGN KEY (to_user) REFERENCES users(id),
 	FOREIGN KEY (from_user) REFERENCES users(id),
 	FOREIGN KEY (request_id) REFERENCES requests(id)
 );
 
 CREATE TABLE IF NOT EXISTS transferred_cards (
-	quantity INT NOT NULL,
 	transfer_id INT NOT NULL,
+	quantity INT NOT NULL,
 	scryfall_id VARCHAR(256) NOT NULL,
 	foil BOOLEAN,
-	language VARCHAR(3) NOT NULL,
 	UNIQUE (transfer_id, scryfall_id, foil, language),
 	FOREIGN KEY (transfer_id) REFERENCES transfers(id)
 );
