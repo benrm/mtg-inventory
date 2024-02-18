@@ -62,21 +62,15 @@ type Card struct {
 	CardFaces []CardFace `json:"card_faces"`
 }
 
-func getPreferredCard(cards []*Card) *Card {
-	if len(cards) == 0 {
-		return nil
+func getPreferredCard(a, b *Card) *Card {
+	if b.Language == "en" && a.Language != "en" {
+		return b
+	} else if b.ReleasedAt.Time.After(a.ReleasedAt.Time) {
+		return b
+	} else if strings.Compare(b.CollectorNumber, a.CollectorNumber) < 0 {
+		return b
 	}
-	preferred := cards[0]
-	for _, current := range cards[1:] {
-		if current.Language == "en" && preferred.Language != "en" {
-			preferred = current
-		} else if current.ReleasedAt.Time.After(preferred.ReleasedAt.Time) {
-			preferred = current
-		} else if strings.Compare(current.CollectorNumber, preferred.CollectorNumber) < 0 {
-			preferred = current
-		}
-	}
-	return preferred
+	return a
 }
 
 // ErrNotInCache should be returned when a card or cards is not in a Cache
@@ -91,8 +85,8 @@ type Cache interface {
 }
 
 type cardsWithDefault struct {
-	Default *Card
-	All     []*Card
+	Default            *Card
+	CollectorNumberMap map[string][]*Card
 }
 
 type cardKey struct {
@@ -103,7 +97,7 @@ type cardKey struct {
 
 type jsonCache struct {
 	KeyMap        map[cardKey]*cardsWithDefault
-	OracleIDMap   map[string]*cardsWithDefault
+	OracleIDMap   map[string]*Card
 	ScryfallIDMap map[string]*Card
 }
 
@@ -117,7 +111,7 @@ func NewCacheFromJSON(reader io.Reader) (Cache, error) {
 
 	cache := &jsonCache{
 		KeyMap:        make(map[cardKey]*cardsWithDefault),
-		OracleIDMap:   make(map[string]*cardsWithDefault),
+		OracleIDMap:   make(map[string]*Card),
 		ScryfallIDMap: make(map[string]*Card),
 	}
 
@@ -135,10 +129,16 @@ func NewCacheFromJSON(reader io.Reader) (Cache, error) {
 		}
 		if _, exists := cache.KeyMap[key]; !exists {
 			cache.KeyMap[key] = &cardsWithDefault{
-				All: make([]*Card, 0),
+				Default:            &card,
+				CollectorNumberMap: make(map[string][]*Card),
 			}
+		} else {
+			cache.KeyMap[key].Default = getPreferredCard(cache.KeyMap[key].Default, &card)
 		}
-		cache.KeyMap[key].All = append(cache.KeyMap[key].All, &card)
+		if _, exists := cache.KeyMap[key].CollectorNumberMap[card.CollectorNumber]; !exists {
+			cache.KeyMap[key].CollectorNumberMap[card.CollectorNumber] = make([]*Card, 0)
+		}
+		cache.KeyMap[key].CollectorNumberMap[card.CollectorNumber] = append(cache.KeyMap[key].CollectorNumberMap[card.CollectorNumber], &card)
 
 		var oracleID string
 		if card.OracleID == "" {
@@ -150,22 +150,13 @@ func NewCacheFromJSON(reader io.Reader) (Cache, error) {
 		} else {
 			oracleID = card.OracleID
 		}
-		if _, exists := cache.OracleIDMap[oracleID]; !exists {
-			cache.OracleIDMap[oracleID] = &cardsWithDefault{
-				All: make([]*Card, 0),
-			}
+		if current, exists := cache.OracleIDMap[oracleID]; !exists {
+			cache.OracleIDMap[oracleID] = &card
+		} else {
+			cache.OracleIDMap[oracleID] = getPreferredCard(current, &card)
 		}
-		cache.OracleIDMap[oracleID].All = append(cache.OracleIDMap[oracleID].All, &card)
 
 		cache.ScryfallIDMap[card.ID] = &card
-	}
-
-	for _, withDefault := range cache.KeyMap {
-		withDefault.Default = getPreferredCard(withDefault.All)
-	}
-
-	for _, byOracleID := range cache.OracleIDMap {
-		byOracleID.Default = getPreferredCard(byOracleID.All)
 	}
 
 	return cache, nil
@@ -181,18 +172,16 @@ func (jc *jsonCache) GetCard(name, set, language, collectorNumber string) (*Card
 		if collectorNumber == "" {
 			return withDefault.Default, nil
 		}
-		for _, card := range withDefault.All {
-			if collectorNumber == card.CollectorNumber {
-				return card, nil
-			}
+		if cards, exists := jc.KeyMap[key].CollectorNumberMap[collectorNumber]; exists {
+			return cards[0], nil
 		}
 	}
 	return nil, fmt.Errorf("didn't find %q|%q|%q|%q: %w", name, set, language, collectorNumber, ErrNotInCache)
 }
 
 func (jc *jsonCache) GetCardByOracleID(oracleID string) (*Card, error) {
-	if oracleSlice, exists := jc.OracleIDMap[oracleID]; exists {
-		return oracleSlice.Default, nil
+	if card, exists := jc.OracleIDMap[oracleID]; exists {
+		return card, nil
 	}
 	return nil, fmt.Errorf("didn't find oracle ID %q: %w", oracleID, ErrNotInCache)
 }
