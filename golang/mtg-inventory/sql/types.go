@@ -9,9 +9,10 @@ type User struct {
 }
 
 type Card struct {
-	OracleID   string
-	ScryfallID string
-	Foil       bool
+	EnglishName string
+	OracleID    string
+	ScryfallID  string
+	Foil        bool
 }
 
 type CardRow struct {

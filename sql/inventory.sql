@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS cards (
 	quantity INT NOT NULL,
+	english_name VARCHAR(256) NOT NULL,
 	oracle_id VARCHAR(256) NOT NULL,
 	scryfall_id VARCHAR(256) NOT NULL,
 	foil BOOLEAN,
@@ -31,6 +32,7 @@ CREATE TABLE IF NOT EXISTS requests (
 
 CREATE TABLE IF NOT EXISTS requested_cards (
 	request_id INT NOT NULL,
+	english_name VARCHAR(256) NOT NULL,
 	oracle_id VARCHAR(256) NOT NULL,
 	quantity INT NOT NULL,
 	UNIQUE (request_id, oracle_id),
@@ -52,6 +54,7 @@ CREATE TABLE IF NOT EXISTS transfers (
 CREATE TABLE IF NOT EXISTS transferred_cards (
 	transfer_id INT NOT NULL,
 	quantity INT NOT NULL,
+	english_name VARCHAR(256) NOT NULL,
 	scryfall_id VARCHAR(256) NOT NULL,
 	foil BOOLEAN,
 	owner INT NOT NULL,

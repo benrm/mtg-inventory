@@ -88,37 +88,41 @@ func TestSQL(t *testing.T) {
 		t.FailNow()
 	}
 
+	fakeCardRow := &CardRow{
+		Quantity: 1,
+		Card: &Card{
+			EnglishName: "fake-card-name",
+			OracleID:    "fake-oracle-ID",
+			ScryfallID:  "fake-scryfall-ID",
+			Foil:        false,
+		},
+		Owner:  user,
+		Keeper: user,
+	}
+
 	ret = t.Run("TestSQLAddCards", func(t *testing.T) {
 		err := AddCards(context.Background(), db, []*CardRow{
-			{
-				Quantity: 1,
-				Card: &Card{
-					OracleID:   "fake-oracle-ID",
-					ScryfallID: "fake-scryfall-ID",
-					Foil:       false,
-				},
-				Owner:  user,
-				Keeper: user,
-			},
+			fakeCardRow,
 		})
 		if err != nil {
 			t.Fatalf("Failed to insert cards: %s", err.Error())
 		}
 
 		err = AddCards(context.Background(), db, []*CardRow{
-			{
-				Quantity: 1,
-				Card: &Card{
-					OracleID:   "fake-oracle-ID",
-					ScryfallID: "fake-scryfall-ID",
-					Foil:       false,
-				},
-				Owner:  user,
-				Keeper: user,
-			},
+			fakeCardRow,
 		})
 		if err != nil {
 			t.Fatalf("Failed to update cards: %s", err.Error())
+		}
+	})
+	if !ret {
+		t.FailNow()
+	}
+
+	ret = t.Run("TestSQLGetCardsByOwner", func(t *testing.T) {
+		_, err = GetCardsByOwner(context.Background(), db, user, 10, 0)
+		if err != nil {
+			t.Fatalf("Failed to get cards by owner: %s", err.Error())
 		}
 	})
 	if !ret {
