@@ -233,7 +233,7 @@ WHERE scryfall_id = ? AND foil = ? AND owner = ? AND keeper =  ?
 		return nil, fmt.Errorf("failed to prepare select for cards: %w", err)
 	}
 
-	updateCard, err := tx.PrepareContext(ctx, `UPDATE cards
+	updateCardStmt, err := tx.PrepareContext(ctx, `UPDATE cards
 SET quantity = quantity - ?
 WHERE scryfall_id = ? AND foil = ? AND owner = ? AND keeper = ?
 `)
@@ -241,7 +241,7 @@ WHERE scryfall_id = ? AND foil = ? AND owner = ? AND keeper = ?
 		return nil, fmt.Errorf("failed to prepare update for cards: %w", err)
 	}
 
-	upsertStmt, err := tx.PrepareContext(ctx, `INSERT INTO cards (quantity, english_name, oracle_id, scryfall_id, foil, owner, keeper)
+	upsertCardStmt, err := tx.PrepareContext(ctx, `INSERT INTO cards (quantity, english_name, oracle_id, scryfall_id, foil, owner, keeper)
 VALUES (?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE quantity = quantity + ?
 `)
 	if err != nil {
@@ -272,12 +272,12 @@ VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE quantity = quantity + ?
 				transferRow.Quantity, transferRow.Card.ScryfallID)
 		}
 
-		_, err = updateCard.Exec(transferRow.Quantity, transferRow.Card.ScryfallID, transferRow.Card.Foil, transferRow.Owner.ID, fromUser.ID)
+		_, err = updateCardStmt.Exec(transferRow.Quantity, transferRow.Card.ScryfallID, transferRow.Card.Foil, transferRow.Owner.ID, fromUser.ID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to update cards: %w", err)
 		}
 
-		_, err = upsertStmt.Exec(transferRow.Quantity, transferRow.Card.EnglishName, transferRow.Card.OracleID, transferRow.Card.ScryfallID, transferRow.Card.Foil, transferRow.Owner.ID, toUser.ID, transferRow.Quantity)
+		_, err = upsertCardStmt.Exec(transferRow.Quantity, transferRow.Card.EnglishName, transferRow.Card.OracleID, transferRow.Card.ScryfallID, transferRow.Card.Foil, transferRow.Owner.ID, toUser.ID, transferRow.Quantity)
 		if err != nil {
 			return nil, fmt.Errorf("failed to upsert cards: %w", err)
 		}
