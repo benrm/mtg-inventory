@@ -105,7 +105,7 @@ func TestSQL(t *testing.T) {
 		t.Fatalf("Failed to update cards: %s", err.Error())
 	}
 
-	_, err = b.GetCardsByOracleID(context.Background(), fakeCard.OracleID)
+	_, err = b.GetCardsByOracleID(context.Background(), fakeCard.OracleID, 10, 0)
 	if err != nil {
 		t.Fatalf("Failed to get cards by oracle ID: %s", err.Error())
 	}

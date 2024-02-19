@@ -10,7 +10,7 @@ import (
 )
 
 // GetCardsByOracleID gets cards based on their Oracle ID
-func (b *Backend) GetCardsByOracleID(ctx context.Context, oracleID string) (_ []*inventory.CardRow, err error) {
+func (b *Backend) GetCardsByOracleID(ctx context.Context, oracleID string, limit, offset int) (_ []*inventory.CardRow, err error) {
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("error getting cards by oracle ID: %w", err)
@@ -23,13 +23,14 @@ LEFT JOIN users owners ON cards.owner = owners.id
 LEFT JOIN users keepers ON cards.keeper = keepers.id
 WHERE cards.oracle_id = ?
 ORDER BY cards.name
+LIMIT ? OFFSET ?
 `)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare select for cards: %w", err)
 	}
 	defer queryStmt.Close()
 
-	queryRows, err := queryStmt.QueryContext(ctx, oracleID)
+	queryRows, err := queryStmt.QueryContext(ctx, oracleID, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to select for cards: %w", err)
 	}

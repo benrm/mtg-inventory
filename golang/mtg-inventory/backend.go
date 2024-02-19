@@ -7,7 +7,7 @@ import (
 // Backend describes an object that maintains state about a Magic: the
 // Gathering inventory
 type Backend interface {
-	GetCardsByOracleID(ctx context.Context, oracleID string) ([]*CardRow, error)
+	GetCardsByOracleID(ctx context.Context, oracleID string, limit, offset int) ([]*CardRow, error)
 	GetCardsByOwner(ctx context.Context, owner *User, limit, offset int) ([]*CardRow, error)
 	GetCardsByKeeper(ctx context.Context, keeper *User, limit, offset int) ([]*CardRow, error)
 	AddCards(ctx context.Context, cardRows []*CardRow) error
