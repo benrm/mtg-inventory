@@ -62,15 +62,28 @@ type Card struct {
 	CardFaces []CardFace `json:"card_faces"`
 }
 
-func getPreferredCard(a, b *Card) *Card {
-	if b.Language == "en" && a.Language != "en" {
-		return b
-	} else if b.ReleasedAt.Time.After(a.ReleasedAt.Time) {
-		return b
-	} else if strings.Compare(b.CollectorNumber, a.CollectorNumber) < 0 {
-		return b
+func isPreferredCard(a, b *Card) bool {
+	// Prefer English
+	if a.Language != b.Language && (b.Language == "en" || a.Language != "en") {
+		return a.Language == "en"
 	}
-	return a
+	// Prefer newer
+	if !a.ReleasedAt.Time.Equal(b.ReleasedAt.Time) {
+		return a.ReleasedAt.Time.After(b.ReleasedAt.Time)
+	}
+	// Prefer smaller collector number
+	if strings.Compare(a.CollectorNumber, b.CollectorNumber) != 0 {
+		return strings.Compare(a.CollectorNumber, b.CollectorNumber) < 0
+	}
+	// Default first
+	return true
+}
+
+func getPreferredCard(a, b *Card) *Card {
+	if isPreferredCard(a, b) {
+		return a
+	}
+	return b
 }
 
 // ErrNotInCache should be returned when a card or cards is not in a Cache
