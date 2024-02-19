@@ -130,4 +130,15 @@ func TestSQL(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to transfer cards: %s", err.Error())
 	}
+
+	_, err = b.RequestCards(context.Background(), user1.Username, []*inventory.RequestedCards{
+		{
+			Name:     "fake-card-name-2",
+			OracleID: "fake-oracle-ID-2",
+			Quantity: 7,
+		},
+	})
+	if err != nil {
+		t.Fatalf("Failed to request cards: %s", err.Error())
+	}
 }

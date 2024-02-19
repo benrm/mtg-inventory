@@ -26,10 +26,11 @@ type CardRow struct {
 
 // Request represents a row in the requests table
 type Request struct {
-	ID        int64     `json:"id"`
-	Requestor string    `json:"requestor"`
-	Opened    time.Time `json:"opened"`
-	Closed    time.Time `json:"closed"`
+	ID        int64             `json:"id"`
+	Requestor string            `json:"requestor"`
+	Opened    time.Time         `json:"opened"`
+	Closed    time.Time         `json:"closed"`
+	Cards     []*RequestedCards `json:"cards"`
 }
 
 // RequestedCards represents a row in the requested_cards table

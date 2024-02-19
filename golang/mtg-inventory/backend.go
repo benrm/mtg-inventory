@@ -11,6 +11,9 @@ type Backend interface {
 	GetCardsByOwner(ctx context.Context, owner string, limit, offset int) ([]*CardRow, error)
 	GetCardsByKeeper(ctx context.Context, keeper string, limit, offset int) ([]*CardRow, error)
 	AddCards(ctx context.Context, cardRows []*CardRow) error
+
+	RequestCards(ctx context.Context, requestor string, rows []*RequestedCards) (*Request, error)
+
 	TransferCards(ctx context.Context, toUser, fromUser string, request *int64, rows []*TransferredCards) (*Transfer, error)
 
 	GetUserByUsername(ctx context.Context, username string) (*User, error)
