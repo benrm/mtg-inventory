@@ -7,18 +7,31 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"strconv"
 
 	"github.com/benrm/mtg-inventory/golang/mtg-inventory/scryfall"
 )
 
-// Server contains the individual parts of the server
-type Server struct {
+// Handler contains the individual parts of the server
+type Handler struct {
 	Backend Backend
 
-	Server *http.Server
-
 	Scryfall scryfall.Cache
+
+	*http.ServeMux
+}
+
+// NewHandler returns a new Handler
+func NewHandler(backend Backend, scryfallCache scryfall.Cache) *Handler {
+	handler := &Handler{
+		Backend:  backend,
+		Scryfall: scryfallCache,
+		ServeMux: http.NewServeMux(),
+	}
+
+	handler.ServeMux.HandleFunc("GET /user/{username}", handler.GetUser)
+	handler.ServeMux.HandleFunc("POST /user", handler.PostUser)
+
+	return handler
 }
 
 func writeJSON(rw io.Writer, object interface{}) error {
@@ -33,45 +46,8 @@ func writeJSON(rw io.Writer, object interface{}) error {
 	return nil
 }
 
-// GetUserByID returns a user given an ID
-func (s *Server) GetUserByID(rw http.ResponseWriter, req *http.Request) {
-	idStr := req.PathValue("id")
-
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		rw.WriteHeader(http.StatusBadRequest)
-		err = writeJSON(rw, HTTPError{Error: err.Error()})
-		if err != nil {
-			log.Printf("Error in GetUserByID: %s", err.Error())
-		}
-		return
-	}
-
-	_, _ = io.ReadAll(req.Body)
-
-	user, err := s.Backend.GetUserByID(req.Context(), id)
-	if err != nil {
-		if errors.Is(err, ErrUserNoExist) {
-			rw.WriteHeader(http.StatusNotFound)
-		} else {
-			rw.WriteHeader(http.StatusInternalServerError)
-		}
-		err = writeJSON(rw, HTTPError{Error: err.Error()})
-		if err != nil {
-			log.Printf("Error in GetUserByID: %s", err.Error())
-		}
-		return
-	}
-
-	rw.WriteHeader(http.StatusOK)
-	err = writeJSON(rw, user)
-	if err != nil {
-		log.Printf("Error in GetUserByID: %s", err.Error())
-	}
-}
-
-// GetUserByUsername returns a user given a username
-func (s *Server) GetUserByUsername(rw http.ResponseWriter, req *http.Request) {
+// GetUser returns a user given a username
+func (s *Handler) GetUser(rw http.ResponseWriter, req *http.Request) {
 	username := req.PathValue("username")
 
 	_, _ = io.ReadAll(req.Body)
@@ -85,7 +61,7 @@ func (s *Server) GetUserByUsername(rw http.ResponseWriter, req *http.Request) {
 		}
 		err = writeJSON(rw, HTTPError{Error: err.Error()})
 		if err != nil {
-			log.Printf("Error in GetUserByUsername: %s", err.Error())
+			log.Printf("Error in GetUser: %s", err.Error())
 		}
 		return
 	}
@@ -93,12 +69,12 @@ func (s *Server) GetUserByUsername(rw http.ResponseWriter, req *http.Request) {
 	rw.WriteHeader(http.StatusOK)
 	err = writeJSON(rw, user)
 	if err != nil {
-		log.Printf("Error in GetUserByUsername: %s", err.Error())
+		log.Printf("Error in GetUser: %s", err.Error())
 	}
 }
 
 // PostUser creates a user given a username and an email
-func (s *Server) PostUser(rw http.ResponseWriter, req *http.Request) {
+func (s *Handler) PostUser(rw http.ResponseWriter, req *http.Request) {
 	if req.Header.Get("Content-Type") != "application/json" {
 		rw.WriteHeader(http.StatusUnsupportedMediaType)
 		err := writeJSON(rw, HTTPError{Error: "must use 'application/json'"})
