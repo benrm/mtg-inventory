@@ -31,6 +31,18 @@ func TestJSONCache(t *testing.T) {
 		t.Fatalf("Error retrieving 'Primeval Titan' from JSON cache with name, set, language, and collector number: %s", err.Error())
 	}
 
+	_, err = cache.GetCardByName("Primeval Titan")
+	if err != nil {
+		t.Fatalf("Error retrieving 'Primeval Titan' from JSON cache with name: %s", err.Error())
+	}
+
+	_, err = cache.GetCardByName("Very Cryptic Command")
+	if err == nil {
+		t.Fatalf("No error retrieving 'Very Cryptic Command' from JSON cache with name")
+	} else if !errors.Is(err, ErrMultipleCacheHits) {
+		t.Fatalf("Unexpected error retrieving 'Very Cryptic Command' from JSON cache with name: %s", err.Error())
+	}
+
 	_, err = cache.GetCardByOracleID("ae83ef2c-960f-4c5b-97cc-52465c687c18")
 	if err != nil {
 		t.Fatalf("Error retrieving 'Primeval Titan' from JSON cache with oracle ID: %s", err.Error())

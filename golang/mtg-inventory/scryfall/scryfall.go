@@ -72,8 +72,12 @@ func isPreferredCard(a, b *Card) bool {
 		return a.ReleasedAt.Time.After(b.ReleasedAt.Time)
 	}
 	// Prefer smaller collector number
-	if strings.Compare(a.CollectorNumber, b.CollectorNumber) != 0 {
+	if a.CollectorNumber != b.CollectorNumber {
 		return strings.Compare(a.CollectorNumber, b.CollectorNumber) < 0
+	}
+	// Prefer alphabetical by set
+	if a.Set != b.Set {
+		return strings.Compare(a.Set, b.Set) < 0
 	}
 	// Default first
 	return true
@@ -86,13 +90,19 @@ func getPreferredCard(a, b *Card) *Card {
 	return b
 }
 
-// ErrNotInCache should be returned when a card or cards is not in a Cache
-var ErrNotInCache = errors.New("not in Scryfall cache")
+var (
+	// ErrNotInCache should be returned when a card or cards is not in a Cache
+	ErrNotInCache = errors.New("not in Scryfall cache")
+
+	// ErrMultipleCacheHits should be returned when a search would unavoidably return multiple results
+	ErrMultipleCacheHits = errors.New("multiple Scryfall cache hits")
+)
 
 // Cache represents a cache of Scryfall bulk data that can be used to look up
 // cards
 type Cache interface {
 	GetCard(name, set, language, collectorNumber string) (*Card, error)
+	GetCardByName(string) (*Card, error)
 	GetCardByOracleID(string) (*Card, error)
 	GetCardByScryfallID(string) (*Card, error)
 }
@@ -109,9 +119,10 @@ type cardKey struct {
 }
 
 type jsonCache struct {
-	KeyMap        map[cardKey]*cardsWithDefault
-	OracleIDMap   map[string]*Card
-	ScryfallIDMap map[string]*Card
+	KeyMap          map[cardKey]*cardsWithDefault
+	OracleIDMap     map[string]*Card
+	ScryfallIDMap   map[string]*Card
+	NameToOracleMap map[string]map[string]*Card
 }
 
 // NewCacheFromJSON creates a Cache from Scryfall bulk JSON data
@@ -123,9 +134,10 @@ func NewCacheFromJSON(reader io.Reader) (Cache, error) {
 	}
 
 	cache := &jsonCache{
-		KeyMap:        make(map[cardKey]*cardsWithDefault),
-		OracleIDMap:   make(map[string]*Card),
-		ScryfallIDMap: make(map[string]*Card),
+		KeyMap:          make(map[cardKey]*cardsWithDefault),
+		OracleIDMap:     make(map[string]*Card),
+		ScryfallIDMap:   make(map[string]*Card),
+		NameToOracleMap: make(map[string]map[string]*Card),
 	}
 
 	for decoder.More() {
@@ -170,6 +182,15 @@ func NewCacheFromJSON(reader io.Reader) (Cache, error) {
 		}
 
 		cache.ScryfallIDMap[card.ID] = &card
+
+		if _, exists := cache.NameToOracleMap[card.Name]; !exists {
+			cache.NameToOracleMap[card.Name] = make(map[string]*Card)
+		}
+		if current, exists := cache.NameToOracleMap[card.Name][card.OracleID]; !exists {
+			cache.NameToOracleMap[card.Name][card.OracleID] = &card
+		} else {
+			cache.NameToOracleMap[card.Name][card.OracleID] = getPreferredCard(current, &card)
+		}
 	}
 
 	return cache, nil
@@ -190,6 +211,19 @@ func (jc *jsonCache) GetCard(name, set, language, collectorNumber string) (*Card
 		}
 	}
 	return nil, fmt.Errorf("didn't find %q|%q|%q|%q: %w", name, set, language, collectorNumber, ErrNotInCache)
+}
+
+func (jc *jsonCache) GetCardByName(name string) (*Card, error) {
+	if oracleMap, exists := jc.NameToOracleMap[name]; exists {
+		if len(oracleMap) == 1 {
+			for _, card := range oracleMap {
+				return card, nil
+			}
+		} else if len(oracleMap) > 1 {
+			return nil, fmt.Errorf("found multiple cards named %q: %w", name, ErrMultipleCacheHits)
+		}
+	}
+	return nil, fmt.Errorf("didn't find name %q: %w", name, ErrNotInCache)
 }
 
 func (jc *jsonCache) GetCardByOracleID(oracleID string) (*Card, error) {
