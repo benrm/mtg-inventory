@@ -18,6 +18,7 @@ func GetUserByID(ctx context.Context, db *sql.DB, id int64) (_ *User, err error)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare select on users: %w", err)
 	}
+	defer queryStmt.Close()
 
 	var username, email string
 	row := queryStmt.QueryRow(id)
@@ -45,6 +46,7 @@ func GetUserByUsername(ctx context.Context, db *sql.DB, username string) (_ *Use
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare select on users: %w", err)
 	}
+	defer queryStmt.Close()
 
 	var id int64
 	var email string
@@ -82,6 +84,7 @@ func AddUser(ctx context.Context, db *sql.DB, username, email string) (*User, er
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare insert on users: %w", err)
 	}
+	defer insertStmt.Close()
 
 	result, err := insertStmt.ExecContext(ctx, username, email)
 	if err != nil {

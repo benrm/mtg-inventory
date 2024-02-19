@@ -25,6 +25,7 @@ func GetCardsByOwner(ctx context.Context, db *sql.DB, owner *User, limit, offset
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare select for cards: %w", err)
 	}
+	defer queryStmt.Close()
 
 	queryRows, err := queryStmt.QueryContext(ctx, owner.ID, limit, offset)
 	if err != nil {
@@ -58,6 +59,10 @@ func GetCardsByOwner(ctx context.Context, db *sql.DB, owner *User, limit, offset
 		}
 		cardRows = append(cardRows, cardRow)
 	}
+	err = queryRows.Err()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get next row on select on cards: %w", err)
+	}
 
 	return cardRows, nil
 }
@@ -80,6 +85,7 @@ func GetCardsByKeeper(ctx context.Context, db *sql.DB, keeper *User, limit, offs
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare select for cards: %w", err)
 	}
+	defer queryStmt.Close()
 
 	queryRows, err := queryStmt.QueryContext(ctx, keeper.ID, limit, offset)
 	if err != nil {
@@ -113,6 +119,10 @@ func GetCardsByKeeper(ctx context.Context, db *sql.DB, keeper *User, limit, offs
 		}
 		cardRows = append(cardRows, cardRow)
 	}
+	err = queryRows.Err()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get next row on select on cards: %w", err)
+	}
 
 	return cardRows, nil
 }
@@ -140,6 +150,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE quantity = quantity + ?
 	if err != nil {
 		return fmt.Errorf("failed to prepare insert on cards: %w", err)
 	}
+	defer upsertStmt.Close()
 
 	for _, cardRow := range cardRows {
 		_, err := upsertStmt.ExecContext(ctx,
@@ -186,26 +197,28 @@ func TransferCards(ctx context.Context, db *sql.DB, toUser *User, fromUser *User
 
 	var result sql.Result
 	if request == nil {
-		insertTransfer, err := tx.PrepareContext(ctx, `INSERT INTO transfers (to_user, from_user, created)
+		insertTransferStmt, err := tx.PrepareContext(ctx, `INSERT INTO transfers (to_user, from_user, created)
 VALUES (?, ?, ?)
 `)
 		if err != nil {
 			return nil, fmt.Errorf("failed to prepare insert transfer without request id: %w", err)
 		}
+		defer insertTransferStmt.Close()
 
-		result, err = insertTransfer.ExecContext(ctx, toUser.ID, fromUser.ID, now)
+		result, err = insertTransferStmt.ExecContext(ctx, toUser.ID, fromUser.ID, now)
 		if err != nil {
 			return nil, fmt.Errorf("failed to insert transfer without request id: %w", err)
 		}
 	} else {
-		insertTransfer, err := tx.PrepareContext(ctx, `INSERT INTO transfers (to_user, from_user, request_id, created)
+		insertTransferStmt, err := tx.PrepareContext(ctx, `INSERT INTO transfers (to_user, from_user, request_id, created)
 VALUES (?, ?, ?, ?)
 `)
 		if err != nil {
 			return nil, fmt.Errorf("failed to prepare insert transfer with request id: %w", err)
 		}
+		defer insertTransferStmt.Close()
 
-		result, err = insertTransfer.ExecContext(ctx, toUser.ID, fromUser.ID, request.ID, now)
+		result, err = insertTransferStmt.ExecContext(ctx, toUser.ID, fromUser.ID, request.ID, now)
 		if err != nil {
 			return nil, fmt.Errorf("failed to insert transfer with request id: %w", err)
 		}
@@ -232,6 +245,7 @@ WHERE scryfall_id = ? AND foil = ? AND owner = ? AND keeper =  ?
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare select for cards: %w", err)
 	}
+	defer selectQuantityStmt.Close()
 
 	updateCardStmt, err := tx.PrepareContext(ctx, `UPDATE cards
 SET quantity = quantity - ?
@@ -240,6 +254,7 @@ WHERE scryfall_id = ? AND foil = ? AND owner = ? AND keeper = ?
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare update for cards: %w", err)
 	}
+	defer updateCardStmt.Close()
 
 	upsertCardStmt, err := tx.PrepareContext(ctx, `INSERT INTO cards (quantity, english_name, oracle_id, scryfall_id, foil, owner, keeper)
 VALUES (?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE quantity = quantity + ?
@@ -247,6 +262,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE quantity = quantity + ?
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare upsert for cards: %w", err)
 	}
+	defer upsertCardStmt.Close()
 
 	upsertTransferCardStmt, err := tx.PrepareContext(ctx, `INSERT INTO transferred_cards (transfer_id, quantity, english_name, scryfall_id, foil, owner)
 VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE quantity = quantity + ?
@@ -254,6 +270,7 @@ VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE quantity = quantity + ?
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare upsert for transferred_cards: %w", err)
 	}
+	defer upsertTransferCardStmt.Close()
 
 	for _, transferRow := range transferRows {
 		row := selectQuantityStmt.QueryRow(
