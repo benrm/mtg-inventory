@@ -73,10 +73,10 @@ func TestSQL(t *testing.T) {
 	}
 
 	fakeCard := &Card{
-		EnglishName: "fake-card-name",
-		OracleID:    "fake-oracle-ID",
-		ScryfallID:  "fake-scryfall-ID",
-		Foil:        false,
+		Name:       "fake-card-name",
+		OracleID:   "fake-oracle-ID",
+		ScryfallID: "fake-scryfall-ID",
+		Foil:       false,
 	}
 
 	fakeCardRow := &CardRow{

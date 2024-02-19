@@ -11,10 +11,10 @@ type User struct {
 
 // Card represents a Card
 type Card struct {
-	EnglishName string
-	OracleID    string
-	ScryfallID  string
-	Foil        bool
+	Name       string
+	OracleID   string
+	ScryfallID string
+	Foil       bool
 }
 
 // CardRow represents a row in the cards table
@@ -35,10 +35,10 @@ type Request struct {
 
 // RequestedCards represents a row in the requested_cards table
 type RequestedCards struct {
-	RequestID   int64
-	EnglishName string
-	OracleID    string
-	Quantity    int
+	RequestID int64
+	Name      string
+	OracleID  string
+	Quantity  int
 }
 
 // Transfer represents a row in the transfers table

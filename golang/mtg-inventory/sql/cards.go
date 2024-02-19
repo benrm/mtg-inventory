@@ -15,11 +15,11 @@ func GetCardsByOwner(ctx context.Context, db *sql.DB, owner *User, limit, offset
 		}
 	}()
 
-	queryStmt, err := db.PrepareContext(ctx, `SELECT cards.quantity, cards.english_name, cards.oracle_id, cards.scryfall_id, cards.foil, keepers.id, keepers.username, keepers.email
+	queryStmt, err := db.PrepareContext(ctx, `SELECT cards.quantity, cards.name, cards.oracle_id, cards.scryfall_id, cards.foil, keepers.id, keepers.username, keepers.email
 	FROM cards
 	LEFT JOIN users keepers ON cards.keeper = keepers.id
 	WHERE cards.owner = ?
-	ORDER BY cards.english_name
+	ORDER BY cards.name
 	LIMIT ? OFFSET ?
 `)
 	if err != nil {
@@ -36,19 +36,19 @@ func GetCardsByOwner(ctx context.Context, db *sql.DB, owner *User, limit, offset
 	for queryRows.Next() {
 		var quantity int
 		var keeperID int64
-		var englishName, oracleID, scryfallID, keeperUsername, keeperEmail string
+		var cardName, oracleID, scryfallID, keeperUsername, keeperEmail string
 		var foil bool
-		err = queryRows.Scan(&quantity, &englishName, &oracleID, &scryfallID, &foil, &keeperID, &keeperUsername, &keeperEmail)
+		err = queryRows.Scan(&quantity, &cardName, &oracleID, &scryfallID, &foil, &keeperID, &keeperUsername, &keeperEmail)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan select on cards: %w", err)
 		}
 		cardRow := &CardRow{
 			Quantity: quantity,
 			Card: &Card{
-				EnglishName: englishName,
-				OracleID:    oracleID,
-				ScryfallID:  scryfallID,
-				Foil:        foil,
+				Name:       cardName,
+				OracleID:   oracleID,
+				ScryfallID: scryfallID,
+				Foil:       foil,
 			},
 			Owner: owner,
 			Keeper: &User{
@@ -75,11 +75,11 @@ func GetCardsByKeeper(ctx context.Context, db *sql.DB, keeper *User, limit, offs
 		}
 	}()
 
-	queryStmt, err := db.PrepareContext(ctx, `SELECT cards.quantity, cards.english_name, cards.oracle_id, cards.scryfall_id, cards.foil, owners.id, owners.username, owners.email
+	queryStmt, err := db.PrepareContext(ctx, `SELECT cards.quantity, cards.name, cards.oracle_id, cards.scryfall_id, cards.foil, owners.id, owners.username, owners.email
 	FROM cards
 	LEFT JOIN users owners ON cards.owner = owners.id
 	WHERE cards.keeper = ?
-	ORDER BY cards.english_name
+	ORDER BY cards.name
 	LIMIT ? OFFSET ?
 `)
 	if err != nil {
@@ -96,19 +96,19 @@ func GetCardsByKeeper(ctx context.Context, db *sql.DB, keeper *User, limit, offs
 	for queryRows.Next() {
 		var quantity int
 		var ownerID int64
-		var englishName, oracleID, scryfallID, ownerUsername, ownerEmail string
+		var cardName, oracleID, scryfallID, ownerUsername, ownerEmail string
 		var foil bool
-		err = queryRows.Scan(&quantity, &englishName, &oracleID, &scryfallID, &foil, &ownerID, &ownerUsername, &ownerEmail)
+		err = queryRows.Scan(&quantity, &cardName, &oracleID, &scryfallID, &foil, &ownerID, &ownerUsername, &ownerEmail)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan select on cards: %w", err)
 		}
 		cardRow := &CardRow{
 			Quantity: quantity,
 			Card: &Card{
-				EnglishName: englishName,
-				OracleID:    oracleID,
-				ScryfallID:  scryfallID,
-				Foil:        foil,
+				Name:       cardName,
+				OracleID:   oracleID,
+				ScryfallID: scryfallID,
+				Foil:       foil,
 			},
 			Owner: &User{
 				ID:       ownerID,
@@ -144,7 +144,7 @@ func AddCards(ctx context.Context, db *sql.DB, cardRows []*CardRow) (err error) 
 		}
 	}()
 
-	upsertStmt, err := tx.PrepareContext(ctx, `INSERT INTO cards (quantity, english_name, oracle_id, scryfall_id, foil, owner, keeper)
+	upsertStmt, err := tx.PrepareContext(ctx, `INSERT INTO cards (quantity, name, oracle_id, scryfall_id, foil, owner, keeper)
 VALUES (?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE quantity = quantity + ?
 `)
 	if err != nil {
@@ -155,7 +155,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE quantity = quantity + ?
 	for _, cardRow := range cardRows {
 		_, err := upsertStmt.ExecContext(ctx,
 			cardRow.Quantity,
-			cardRow.Card.EnglishName,
+			cardRow.Card.Name,
 			cardRow.Card.OracleID,
 			cardRow.Card.ScryfallID,
 			cardRow.Card.Foil,
@@ -256,7 +256,7 @@ WHERE scryfall_id = ? AND foil = ? AND owner = ? AND keeper = ?
 	}
 	defer updateCardStmt.Close()
 
-	upsertCardStmt, err := tx.PrepareContext(ctx, `INSERT INTO cards (quantity, english_name, oracle_id, scryfall_id, foil, owner, keeper)
+	upsertCardStmt, err := tx.PrepareContext(ctx, `INSERT INTO cards (quantity, name, oracle_id, scryfall_id, foil, owner, keeper)
 VALUES (?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE quantity = quantity + ?
 `)
 	if err != nil {
@@ -264,7 +264,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE quantity = quantity + ?
 	}
 	defer upsertCardStmt.Close()
 
-	upsertTransferCardStmt, err := tx.PrepareContext(ctx, `INSERT INTO transferred_cards (transfer_id, quantity, english_name, scryfall_id, foil, owner)
+	upsertTransferCardStmt, err := tx.PrepareContext(ctx, `INSERT INTO transferred_cards (transfer_id, quantity, name, scryfall_id, foil, owner)
 VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE quantity = quantity + ?
 `)
 	if err != nil {
@@ -294,12 +294,12 @@ VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE quantity = quantity + ?
 			return nil, fmt.Errorf("failed to update cards: %w", err)
 		}
 
-		_, err = upsertCardStmt.ExecContext(ctx, transferRow.Quantity, transferRow.Card.EnglishName, transferRow.Card.OracleID, transferRow.Card.ScryfallID, transferRow.Card.Foil, transferRow.Owner.ID, toUser.ID, transferRow.Quantity)
+		_, err = upsertCardStmt.ExecContext(ctx, transferRow.Quantity, transferRow.Card.Name, transferRow.Card.OracleID, transferRow.Card.ScryfallID, transferRow.Card.Foil, transferRow.Owner.ID, toUser.ID, transferRow.Quantity)
 		if err != nil {
 			return nil, fmt.Errorf("failed to upsert cards: %w", err)
 		}
 
-		_, err = upsertTransferCardStmt.ExecContext(ctx, transfer.ID, transferRow.Quantity, transferRow.Card.EnglishName, transferRow.Card.ScryfallID, transferRow.Card.Foil, transferRow.Owner.ID, transferRow.Quantity)
+		_, err = upsertTransferCardStmt.ExecContext(ctx, transfer.ID, transferRow.Quantity, transferRow.Card.Name, transferRow.Card.ScryfallID, transferRow.Card.Foil, transferRow.Owner.ID, transferRow.Quantity)
 		if err != nil {
 			return nil, fmt.Errorf("failed to upsert transferred_cards: %w", err)
 		}
