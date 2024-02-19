@@ -100,6 +100,11 @@ func TestSQL(t *testing.T) {
 		t.Fatalf("Failed to update cards: %s", err.Error())
 	}
 
+	_, err = GetCardsByOracleID(context.Background(), db, fakeCard.OracleID)
+	if err != nil {
+		t.Fatalf("Failed to get cards by oracle ID: %s", err.Error())
+	}
+
 	_, err = GetCardsByOwner(context.Background(), db, user1, 10, 0)
 	if err != nil {
 		t.Fatalf("Failed to get cards by owner: %s", err.Error())

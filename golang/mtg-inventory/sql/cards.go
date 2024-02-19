@@ -7,6 +7,70 @@ import (
 	"time"
 )
 
+// GetCardsByOracleID gets cards based on their Oracle ID
+func GetCardsByOracleID(ctx context.Context, db *sql.DB, oracleID string) (_ []*CardRow, err error) {
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("error getting cards by oracle ID: %w", err)
+		}
+	}()
+
+	queryStmt, err := db.PrepareContext(ctx, `SELECT cards.quantity, cards.name, cards.scryfall_id, cards.foil, owners.id, owners.username, owners.email, keepers.id, keepers.username, keepers.email
+FROM cards
+LEFT JOIN users owners ON cards.owner = owners.id
+LEFT JOIN users keepers ON cards.keeper = keepers.id
+WHERE cards.oracle_id = ?
+ORDER BY cards.name
+`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare select for cards: %w", err)
+	}
+	defer queryStmt.Close()
+
+	queryRows, err := queryStmt.QueryContext(ctx, oracleID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to select for cards: %w", err)
+	}
+
+	cardRows := make([]*CardRow, 0)
+	for queryRows.Next() {
+		var quantity int
+		var ownerID, keeperID int64
+		var cardName, scryfallID, ownerUsername, ownerEmail, keeperUsername, keeperEmail string
+		var foil bool
+		err = queryRows.Scan(&quantity, &cardName, &scryfallID, &foil, &ownerID, &ownerUsername, &ownerEmail, &keeperID, &keeperUsername, &keeperEmail)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan select on cards: %w", err)
+		}
+		cardRow := &CardRow{
+			Quantity: quantity,
+			Card: &Card{
+				Name:       cardName,
+				OracleID:   oracleID,
+				ScryfallID: scryfallID,
+				Foil:       foil,
+			},
+			Owner: &User{
+				ID:       ownerID,
+				Username: ownerUsername,
+				Email:    keeperEmail,
+			},
+			Keeper: &User{
+				ID:       keeperID,
+				Username: keeperUsername,
+				Email:    keeperEmail,
+			},
+		}
+		cardRows = append(cardRows, cardRow)
+	}
+	err = queryRows.Err()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get next row on select on cards: %w", err)
+	}
+
+	return cardRows, nil
+}
+
 // GetCardsByOwner gets cards based on their owner
 func GetCardsByOwner(ctx context.Context, db *sql.DB, owner *User, limit, offset int) (_ []*CardRow, err error) {
 	defer func() {
