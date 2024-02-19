@@ -18,11 +18,6 @@ type Server struct {
 	Scryfall scryfall.Cache
 }
 
-// Error is the type used to marshal errors into JSON
-type Error struct {
-	Error string `json:"error"`
-}
-
 // GetUserByUsername returns a user given a username
 func (s *Server) GetUserByUsername(rw http.ResponseWriter, req *http.Request) {
 	username := req.PathValue("username")
@@ -34,7 +29,7 @@ func (s *Server) GetUserByUsername(rw http.ResponseWriter, req *http.Request) {
 		} else {
 			rw.WriteHeader(http.StatusInternalServerError)
 		}
-		b, err := json.Marshal(Error{Error: err.Error()})
+		b, err := json.Marshal(HTTPError{Error: err.Error()})
 		if err != nil {
 			log.Printf("Error marshaling error in GetUserByUsername: %s", err.Error())
 			return

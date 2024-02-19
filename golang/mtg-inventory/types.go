@@ -11,50 +11,55 @@ type User struct {
 
 // Card represents a Card
 type Card struct {
-	Name       string
-	OracleID   string
-	ScryfallID string
-	Foil       bool
+	Name       string `json:"name"`
+	OracleID   string `json:"oracle_id"`
+	ScryfallID string `json:"scryfall_id"`
+	Foil       bool   `json:"foil"`
 }
 
 // CardRow represents a row in the cards table
 type CardRow struct {
-	Quantity int
-	Card     *Card
-	Owner    *User
-	Keeper   *User
+	Quantity int   `json:"quantity"`
+	Card     *Card `json:"card"`
+	Owner    *User `json:"owner"`
+	Keeper   *User `json:"keeper"`
 }
 
 // Request represents a row in the requests table
 type Request struct {
-	ID        int64
-	Requestor *User
-	Opened    time.Time
-	Closed    time.Time
+	ID        int64     `json:"id"`
+	Requestor *User     `json:"requestor"`
+	Opened    time.Time `json:"opened"`
+	Closed    time.Time `json:"closed"`
 }
 
 // RequestedCards represents a row in the requested_cards table
 type RequestedCards struct {
-	RequestID int64
-	Name      string
-	OracleID  string
-	Quantity  int
+	RequestID int64  `json:"request_id"`
+	Name      string `json:"name"`
+	OracleID  string `json:"oracle_id"`
+	Quantity  int    `json:"quantity"`
 }
 
 // Transfer represents a row in the transfers table
 type Transfer struct {
-	ID        int64
-	RequestID int64
-	ToUser    *User
-	FromUser  *User
-	Created   time.Time
-	Executed  time.Time
-	Cards     []*TransferredCards
+	ID        int64               `json:"id"`
+	RequestID int64               `json:"request_id"`
+	ToUser    *User               `json:"to_user"`
+	FromUser  *User               `json:"from_user"`
+	Created   time.Time           `json:"created"`
+	Executed  time.Time           `json:"executed"`
+	Cards     []*TransferredCards `json:"cards"`
 }
 
 // TransferredCards represents a row in the transferred_cards table
 type TransferredCards struct {
-	Quantity int
-	Card     *Card
-	Owner    *User
+	Quantity int   `json:"quantity"`
+	Card     *Card `json:"card"`
+	Owner    *User `json:"owner"`
+}
+
+// HTTPError is the type used to marshal errors into JSON
+type HTTPError struct {
+	Error string `json:"error"`
 }
