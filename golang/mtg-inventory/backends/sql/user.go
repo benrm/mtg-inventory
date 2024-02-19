@@ -5,22 +5,19 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-)
 
-var (
-	// ErrUserNoExist is the error returned when a user does not exist
-	ErrUserNoExist = errors.New("user does not exist")
+	inventory "github.com/benrm/mtg-inventory/golang/mtg-inventory"
 )
 
 // GetUserByID gets a User by its ID
-func GetUserByID(ctx context.Context, db *sql.DB, id int64) (_ *User, err error) {
+func (b *Backend) GetUserByID(ctx context.Context, id int64) (_ *inventory.User, err error) {
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("error getting user by ID %d: %w", id, err)
 		}
 	}()
 
-	queryStmt, err := db.PrepareContext(ctx, "SELECT username, email FROM users WHERE id = ?")
+	queryStmt, err := b.DB.PrepareContext(ctx, "SELECT username, email FROM users WHERE id = ?")
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare select on users: %w", err)
 	}
@@ -31,12 +28,12 @@ func GetUserByID(ctx context.Context, db *sql.DB, id int64) (_ *User, err error)
 	err = row.Scan(&username, &email)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrUserNoExist
+			return nil, inventory.ErrUserNoExist
 		}
 		return nil, fmt.Errorf("failed to scan row from select on users: %w", err)
 	}
 
-	return &User{
+	return &inventory.User{
 		ID:       id,
 		Username: username,
 		Email:    email,
@@ -44,14 +41,14 @@ func GetUserByID(ctx context.Context, db *sql.DB, id int64) (_ *User, err error)
 }
 
 // GetUserByUsername gets a User by its username
-func GetUserByUsername(ctx context.Context, db *sql.DB, username string) (_ *User, err error) {
+func (b *Backend) GetUserByUsername(ctx context.Context, username string) (_ *inventory.User, err error) {
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("error getting user by username %s: %w", username, err)
 		}
 	}()
 
-	queryStmt, err := db.PrepareContext(ctx, "SELECT id, email FROM users WHERE username = ?")
+	queryStmt, err := b.DB.PrepareContext(ctx, "SELECT id, email FROM users WHERE username = ?")
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare select on users: %w", err)
 	}
@@ -63,12 +60,12 @@ func GetUserByUsername(ctx context.Context, db *sql.DB, username string) (_ *Use
 	err = row.Scan(&id, &email)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrUserNoExist
+			return nil, inventory.ErrUserNoExist
 		}
 		return nil, fmt.Errorf("failed to scan row from select on users: %w", err)
 	}
 
-	return &User{
+	return &inventory.User{
 		ID:       id,
 		Username: username,
 		Email:    email,
@@ -76,8 +73,8 @@ func GetUserByUsername(ctx context.Context, db *sql.DB, username string) (_ *Use
 }
 
 // AddUser adds a User given its username and email
-func AddUser(ctx context.Context, db *sql.DB, username, email string) (*User, error) {
-	tx, err := db.BeginTx(ctx, nil)
+func (b *Backend) AddUser(ctx context.Context, username, email string) (*inventory.User, error) {
+	tx, err := b.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error adding user: %w", err)
 	}
@@ -113,7 +110,7 @@ func AddUser(ctx context.Context, db *sql.DB, username, email string) (*User, er
 		return nil, fmt.Errorf("failed to get last insert id from insert on users: %w", err)
 	}
 
-	return &User{
+	return &inventory.User{
 		ID:       id,
 		Username: username,
 		Email:    email,

@@ -5,17 +5,19 @@ import (
 	"database/sql"
 	"fmt"
 	"time"
+
+	inventory "github.com/benrm/mtg-inventory/golang/mtg-inventory"
 )
 
 // GetCardsByOracleID gets cards based on their Oracle ID
-func GetCardsByOracleID(ctx context.Context, db *sql.DB, oracleID string) (_ []*CardRow, err error) {
+func (b *Backend) GetCardsByOracleID(ctx context.Context, oracleID string) (_ []*inventory.CardRow, err error) {
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("error getting cards by oracle ID: %w", err)
 		}
 	}()
 
-	queryStmt, err := db.PrepareContext(ctx, `SELECT cards.quantity, cards.name, cards.scryfall_id, cards.foil, owners.id, owners.username, owners.email, keepers.id, keepers.username, keepers.email
+	queryStmt, err := b.DB.PrepareContext(ctx, `SELECT cards.quantity, cards.name, cards.scryfall_id, cards.foil, owners.id, owners.username, owners.email, keepers.id, keepers.username, keepers.email
 FROM cards
 LEFT JOIN users owners ON cards.owner = owners.id
 LEFT JOIN users keepers ON cards.keeper = keepers.id
@@ -32,7 +34,7 @@ ORDER BY cards.name
 		return nil, fmt.Errorf("failed to select for cards: %w", err)
 	}
 
-	cardRows := make([]*CardRow, 0)
+	cardRows := make([]*inventory.CardRow, 0)
 	for queryRows.Next() {
 		var quantity int
 		var ownerID, keeperID int64
@@ -42,20 +44,20 @@ ORDER BY cards.name
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan select on cards: %w", err)
 		}
-		cardRow := &CardRow{
+		cardRow := &inventory.CardRow{
 			Quantity: quantity,
-			Card: &Card{
+			Card: &inventory.Card{
 				Name:       cardName,
 				OracleID:   oracleID,
 				ScryfallID: scryfallID,
 				Foil:       foil,
 			},
-			Owner: &User{
+			Owner: &inventory.User{
 				ID:       ownerID,
 				Username: ownerUsername,
 				Email:    keeperEmail,
 			},
-			Keeper: &User{
+			Keeper: &inventory.User{
 				ID:       keeperID,
 				Username: keeperUsername,
 				Email:    keeperEmail,
@@ -72,14 +74,14 @@ ORDER BY cards.name
 }
 
 // GetCardsByOwner gets cards based on their owner
-func GetCardsByOwner(ctx context.Context, db *sql.DB, owner *User, limit, offset int) (_ []*CardRow, err error) {
+func (b *Backend) GetCardsByOwner(ctx context.Context, owner *inventory.User, limit, offset int) (_ []*inventory.CardRow, err error) {
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("error getting cards by owner: %w", err)
 		}
 	}()
 
-	queryStmt, err := db.PrepareContext(ctx, `SELECT cards.quantity, cards.name, cards.oracle_id, cards.scryfall_id, cards.foil, keepers.id, keepers.username, keepers.email
+	queryStmt, err := b.DB.PrepareContext(ctx, `SELECT cards.quantity, cards.name, cards.oracle_id, cards.scryfall_id, cards.foil, keepers.id, keepers.username, keepers.email
 	FROM cards
 	LEFT JOIN users keepers ON cards.keeper = keepers.id
 	WHERE cards.owner = ?
@@ -96,7 +98,7 @@ func GetCardsByOwner(ctx context.Context, db *sql.DB, owner *User, limit, offset
 		return nil, fmt.Errorf("failed to select for cards: %w", err)
 	}
 
-	cardRows := make([]*CardRow, 0)
+	cardRows := make([]*inventory.CardRow, 0)
 	for queryRows.Next() {
 		var quantity int
 		var keeperID int64
@@ -106,16 +108,16 @@ func GetCardsByOwner(ctx context.Context, db *sql.DB, owner *User, limit, offset
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan select on cards: %w", err)
 		}
-		cardRow := &CardRow{
+		cardRow := &inventory.CardRow{
 			Quantity: quantity,
-			Card: &Card{
+			Card: &inventory.Card{
 				Name:       cardName,
 				OracleID:   oracleID,
 				ScryfallID: scryfallID,
 				Foil:       foil,
 			},
 			Owner: owner,
-			Keeper: &User{
+			Keeper: &inventory.User{
 				ID:       keeperID,
 				Username: keeperUsername,
 				Email:    keeperEmail,
@@ -132,14 +134,14 @@ func GetCardsByOwner(ctx context.Context, db *sql.DB, owner *User, limit, offset
 }
 
 // GetCardsByKeeper gets cards based on their keeper
-func GetCardsByKeeper(ctx context.Context, db *sql.DB, keeper *User, limit, offset int) (_ []*CardRow, err error) {
+func (b *Backend) GetCardsByKeeper(ctx context.Context, keeper *inventory.User, limit, offset int) (_ []*inventory.CardRow, err error) {
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("error getting cards by keeper: %w", err)
 		}
 	}()
 
-	queryStmt, err := db.PrepareContext(ctx, `SELECT cards.quantity, cards.name, cards.oracle_id, cards.scryfall_id, cards.foil, owners.id, owners.username, owners.email
+	queryStmt, err := b.DB.PrepareContext(ctx, `SELECT cards.quantity, cards.name, cards.oracle_id, cards.scryfall_id, cards.foil, owners.id, owners.username, owners.email
 	FROM cards
 	LEFT JOIN users owners ON cards.owner = owners.id
 	WHERE cards.keeper = ?
@@ -156,7 +158,7 @@ func GetCardsByKeeper(ctx context.Context, db *sql.DB, keeper *User, limit, offs
 		return nil, fmt.Errorf("failed to select for cards: %w", err)
 	}
 
-	cardRows := make([]*CardRow, 0)
+	cardRows := make([]*inventory.CardRow, 0)
 	for queryRows.Next() {
 		var quantity int
 		var ownerID int64
@@ -166,15 +168,15 @@ func GetCardsByKeeper(ctx context.Context, db *sql.DB, keeper *User, limit, offs
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan select on cards: %w", err)
 		}
-		cardRow := &CardRow{
+		cardRow := &inventory.CardRow{
 			Quantity: quantity,
-			Card: &Card{
+			Card: &inventory.Card{
 				Name:       cardName,
 				OracleID:   oracleID,
 				ScryfallID: scryfallID,
 				Foil:       foil,
 			},
-			Owner: &User{
+			Owner: &inventory.User{
 				ID:       ownerID,
 				Username: ownerUsername,
 				Email:    ownerEmail,
@@ -192,8 +194,8 @@ func GetCardsByKeeper(ctx context.Context, db *sql.DB, keeper *User, limit, offs
 }
 
 // AddCards adds cards given a slice of them
-func AddCards(ctx context.Context, db *sql.DB, cardRows []*CardRow) (err error) {
-	tx, err := db.BeginTx(ctx, nil)
+func (b *Backend) AddCards(ctx context.Context, cardRows []*inventory.CardRow) (err error) {
+	tx, err := b.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("error adding cards: %w", err)
 	}
@@ -241,8 +243,8 @@ VALUES (?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE quantity = quantity + ?
 }
 
 // TransferCards transfers cards between two users
-func TransferCards(ctx context.Context, db *sql.DB, toUser *User, fromUser *User, request *Request, transferRows []*TransferredCards) (_ *Transfer, err error) {
-	tx, err := db.BeginTx(ctx, nil)
+func (b *Backend) TransferCards(ctx context.Context, toUser *inventory.User, fromUser *inventory.User, request *inventory.Request, transferRows []*inventory.TransferredCards) (_ *inventory.Transfer, err error) {
+	tx, err := b.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error transferring cards: %w", err)
 	}
@@ -291,7 +293,7 @@ VALUES (?, ?, ?, ?)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get last insert id of transfer: %w", err)
 	}
-	transfer := &Transfer{
+	transfer := &inventory.Transfer{
 		ID:       id,
 		ToUser:   toUser,
 		FromUser: fromUser,

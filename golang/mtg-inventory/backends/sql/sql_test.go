@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"testing"
 
+	inventory "github.com/benrm/mtg-inventory/golang/mtg-inventory"
 	_ "github.com/go-sql-driver/mysql"
 )
 
@@ -57,76 +58,80 @@ func TestSQL(t *testing.T) {
 		}
 	}
 
-	user1, err := AddUser(context.Background(), db, "user1", "user1@domain.com")
+	b := &Backend{
+		DB: db,
+	}
+
+	user1, err := b.AddUser(context.Background(), "user1", "user1@domain.com")
 	if err != nil {
 		t.Fatalf("Failed to add user: %s", err.Error())
 	}
 
-	_, err = GetUserByID(context.Background(), db, user1.ID)
+	_, err = b.GetUserByID(context.Background(), user1.ID)
 	if err != nil {
 		t.Fatalf("Failed to get user by ID: %s", err.Error())
 	}
 
-	_, err = GetUserByUsername(context.Background(), db, user1.Username)
+	_, err = b.GetUserByUsername(context.Background(), user1.Username)
 	if err != nil {
 		t.Fatalf("Failed to get user by username: %s", err.Error())
 	}
 
-	fakeCard := &Card{
+	fakeCard := &inventory.Card{
 		Name:       "fake-card-name",
 		OracleID:   "fake-oracle-ID",
 		ScryfallID: "fake-scryfall-ID",
 		Foil:       false,
 	}
 
-	fakeCardRow := &CardRow{
+	fakeCardRow := &inventory.CardRow{
 		Quantity: 1,
 		Card:     fakeCard,
 		Owner:    user1,
 		Keeper:   user1,
 	}
 
-	err = AddCards(context.Background(), db, []*CardRow{
+	err = b.AddCards(context.Background(), []*inventory.CardRow{
 		fakeCardRow,
 	})
 	if err != nil {
 		t.Fatalf("Failed to insert cards: %s", err.Error())
 	}
 
-	err = AddCards(context.Background(), db, []*CardRow{
+	err = b.AddCards(context.Background(), []*inventory.CardRow{
 		fakeCardRow,
 	})
 	if err != nil {
 		t.Fatalf("Failed to update cards: %s", err.Error())
 	}
 
-	_, err = GetCardsByOracleID(context.Background(), db, fakeCard.OracleID)
+	_, err = b.GetCardsByOracleID(context.Background(), fakeCard.OracleID)
 	if err != nil {
 		t.Fatalf("Failed to get cards by oracle ID: %s", err.Error())
 	}
 
-	_, err = GetCardsByOwner(context.Background(), db, user1, 10, 0)
+	_, err = b.GetCardsByOwner(context.Background(), user1, 10, 0)
 	if err != nil {
 		t.Fatalf("Failed to get cards by owner: %s", err.Error())
 	}
 
-	_, err = GetCardsByKeeper(context.Background(), db, user1, 10, 0)
+	_, err = b.GetCardsByKeeper(context.Background(), user1, 10, 0)
 	if err != nil {
 		t.Fatalf("Failed to get cards by keeper: %s", err.Error())
 	}
 
-	user2, err := AddUser(context.Background(), db, "user2", "user2@domain.com")
+	user2, err := b.AddUser(context.Background(), "user2", "user2@domain.com")
 	if err != nil {
 		t.Fatalf("Failed to add user: %s", err.Error())
 	}
 
-	fakeTransferRow := &TransferredCards{
+	fakeTransferRow := &inventory.TransferredCards{
 		Quantity: 1,
 		Card:     fakeCard,
 		Owner:    user1,
 	}
 
-	_, err = TransferCards(context.Background(), db, user2, user1, nil, []*TransferredCards{
+	_, err = b.TransferCards(context.Background(), user2, user1, nil, []*inventory.TransferredCards{
 		fakeTransferRow,
 	})
 	if err != nil {
