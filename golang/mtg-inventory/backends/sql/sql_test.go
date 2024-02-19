@@ -80,8 +80,8 @@ func TestSQL(t *testing.T) {
 	fakeCardRow := &inventory.CardRow{
 		Quantity: 1,
 		Card:     fakeCard,
-		Owner:    user1,
-		Keeper:   user1,
+		Owner:    user1.Username,
+		Keeper:   user1.Username,
 	}
 
 	err = b.AddCards(context.Background(), []*inventory.CardRow{
@@ -103,12 +103,12 @@ func TestSQL(t *testing.T) {
 		t.Fatalf("Failed to get cards by oracle ID: %s", err.Error())
 	}
 
-	_, err = b.GetCardsByOwner(context.Background(), user1, 10, 0)
+	_, err = b.GetCardsByOwner(context.Background(), user1.Username, 10, 0)
 	if err != nil {
 		t.Fatalf("Failed to get cards by owner: %s", err.Error())
 	}
 
-	_, err = b.GetCardsByKeeper(context.Background(), user1, 10, 0)
+	_, err = b.GetCardsByKeeper(context.Background(), user1.Username, 10, 0)
 	if err != nil {
 		t.Fatalf("Failed to get cards by keeper: %s", err.Error())
 	}
@@ -121,10 +121,10 @@ func TestSQL(t *testing.T) {
 	fakeTransferRow := &inventory.TransferredCards{
 		Quantity: 1,
 		Card:     fakeCard,
-		Owner:    user1,
+		Owner:    user1.Username,
 	}
 
-	_, err = b.TransferCards(context.Background(), user2, user1, nil, []*inventory.TransferredCards{
+	_, err = b.TransferCards(context.Background(), user2.Username, user1.Username, nil, []*inventory.TransferredCards{
 		fakeTransferRow,
 	})
 	if err != nil {
