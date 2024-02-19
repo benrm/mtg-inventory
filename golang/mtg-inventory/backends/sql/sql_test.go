@@ -67,11 +67,6 @@ func TestSQL(t *testing.T) {
 		t.Fatalf("Failed to add user: %s", err.Error())
 	}
 
-	_, err = b.GetUserByID(context.Background(), user1.ID)
-	if err != nil {
-		t.Fatalf("Failed to get user by ID: %s", err.Error())
-	}
-
 	_, err = b.GetUserByUsername(context.Background(), user1.Username)
 	if err != nil {
 		t.Fatalf("Failed to get user by username: %s", err.Error())

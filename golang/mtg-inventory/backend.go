@@ -13,7 +13,6 @@ type Backend interface {
 	AddCards(ctx context.Context, cardRows []*CardRow) error
 	TransferCards(ctx context.Context, toUser, fromUser *User, request *Request, rows []*TransferredCards) (*Transfer, error)
 
-	GetUserByID(ctx context.Context, id int64) (*User, error)
 	GetUserByUsername(ctx context.Context, username string) (*User, error)
 	AddUser(ctx context.Context, username, email string) (*User, error)
 }

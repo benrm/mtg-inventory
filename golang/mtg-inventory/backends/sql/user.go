@@ -9,37 +9,6 @@ import (
 	inventory "github.com/benrm/mtg-inventory/golang/mtg-inventory"
 )
 
-// GetUserByID gets a User by its ID
-func (b *Backend) GetUserByID(ctx context.Context, id int64) (_ *inventory.User, err error) {
-	defer func() {
-		if err != nil {
-			err = fmt.Errorf("error getting user by ID %d: %w", id, err)
-		}
-	}()
-
-	queryStmt, err := b.DB.PrepareContext(ctx, "SELECT username, email FROM users WHERE id = ?")
-	if err != nil {
-		return nil, fmt.Errorf("failed to prepare select on users: %w", err)
-	}
-	defer queryStmt.Close()
-
-	var username, email string
-	row := queryStmt.QueryRow(id)
-	err = row.Scan(&username, &email)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, inventory.ErrUserNoExist
-		}
-		return nil, fmt.Errorf("failed to scan row from select on users: %w", err)
-	}
-
-	return &inventory.User{
-		ID:       id,
-		Username: username,
-		Email:    email,
-	}, nil
-}
-
 // GetUserByUsername gets a User by its username
 func (b *Backend) GetUserByUsername(ctx context.Context, username string) (_ *inventory.User, err error) {
 	defer func() {
