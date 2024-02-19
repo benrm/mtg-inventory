@@ -3,14 +3,20 @@ package sql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+)
+
+var (
+	// ErrUserNoExist is the error returned when a user does not exist
+	ErrUserNoExist = errors.New("user does not exist")
 )
 
 // GetUserByID gets a User by its ID
 func GetUserByID(ctx context.Context, db *sql.DB, id int64) (_ *User, err error) {
 	defer func() {
 		if err != nil {
-			err = fmt.Errorf("error adding user: %w", err)
+			err = fmt.Errorf("error getting user by ID %d: %w", id, err)
 		}
 	}()
 
@@ -24,6 +30,9 @@ func GetUserByID(ctx context.Context, db *sql.DB, id int64) (_ *User, err error)
 	row := queryStmt.QueryRow(id)
 	err = row.Scan(&username, &email)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrUserNoExist
+		}
 		return nil, fmt.Errorf("failed to scan row from select on users: %w", err)
 	}
 
@@ -38,7 +47,7 @@ func GetUserByID(ctx context.Context, db *sql.DB, id int64) (_ *User, err error)
 func GetUserByUsername(ctx context.Context, db *sql.DB, username string) (_ *User, err error) {
 	defer func() {
 		if err != nil {
-			err = fmt.Errorf("error adding user: %w", err)
+			err = fmt.Errorf("error getting user by username %s: %w", username, err)
 		}
 	}()
 
@@ -53,6 +62,9 @@ func GetUserByUsername(ctx context.Context, db *sql.DB, username string) (_ *Use
 	row := queryStmt.QueryRow(username)
 	err = row.Scan(&id, &email)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrUserNoExist
+		}
 		return nil, fmt.Errorf("failed to scan row from select on users: %w", err)
 	}
 
