@@ -34,12 +34,7 @@ func main() {
 		log.Fatalf("Error opening database connection: %s", err.Error())
 	}
 
-	handler := inventory.NewHandler(
-		&intsql.Backend{
-			DB: db,
-		},
-		nil,
-	)
+	handler := inventory.NewHandler(intsql.NewBackend(db), nil)
 
 	server := &http.Server{
 		Addr:    *bindAddr,

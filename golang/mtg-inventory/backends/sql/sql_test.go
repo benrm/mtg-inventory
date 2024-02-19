@@ -58,9 +58,7 @@ func TestSQL(t *testing.T) {
 		}
 	}
 
-	b := &Backend{
-		DB: db,
-	}
+	b := NewBackend(db)
 
 	user1, err := b.AddUser(context.Background(), "user1", "user1@domain.com")
 	if err != nil {

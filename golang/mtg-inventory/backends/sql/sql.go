@@ -14,4 +14,11 @@ type Backend struct {
 	DB *sql.DB
 }
 
+// NewBackend returns an instantiated Backend
+func NewBackend(db *sql.DB) inventory.Backend {
+	return &Backend{
+		DB: db,
+	}
+}
+
 var _ inventory.Backend = &Backend{}
