@@ -49,13 +49,6 @@ VALUES (?, ?)
 		return nil, fmt.Errorf("error getting new request ID: %w", err)
 	}
 
-	request := &inventory.Request{
-		ID:        requestID,
-		Requestor: requestorUsername,
-		Opened:    now,
-		Cards:     make([]*inventory.RequestedCards, 0),
-	}
-
 	upsertRequestedCardsStmt, err := tx.PrepareContext(ctx, `INSERT INTO requested_cards (request_id, name, oracle_id, quantity)
 VALUES (?, ?, ?, ?)
 ON DUPLICATE KEY UPDATE quantity = quantity + ?
@@ -69,14 +62,6 @@ ON DUPLICATE KEY UPDATE quantity = quantity + ?
 		if err != nil {
 			return nil, fmt.Errorf("error inserting requested cards: %w", err)
 		}
-
-		requestedCards := &inventory.RequestedCards{
-			RequestID: requestID,
-			Name:      cards.Name,
-			OracleID:  cards.OracleID,
-			Quantity:  cards.Quantity,
-		}
-		request.Cards = append(request.Cards, requestedCards)
 	}
 
 	err = tx.Commit()
@@ -84,5 +69,12 @@ ON DUPLICATE KEY UPDATE quantity = quantity + ?
 		return nil, fmt.Errorf("error commiting cards request: %w", err)
 	}
 
-	return
+	request := &inventory.Request{
+		ID:        requestID,
+		Requestor: requestorUsername,
+		Opened:    now,
+		Cards:     rows,
+	}
+
+	return request, nil
 }

@@ -35,10 +35,9 @@ type Request struct {
 
 // RequestedCards represents a row in the requested_cards table
 type RequestedCards struct {
-	RequestID int64  `json:"request_id"`
-	Name      string `json:"name"`
-	OracleID  string `json:"oracle_id"`
-	Quantity  int    `json:"quantity"`
+	Quantity int    `json:"quantity"`
+	Name     string `json:"name"`
+	OracleID string `json:"oracle_id"`
 }
 
 // Transfer represents a row in the transfers table
