@@ -34,27 +34,27 @@ func TestSQL(t *testing.T) {
 	if deleteAll {
 		_, err = db.Exec("DELETE FROM transferred_cards")
 		if err != nil {
-			t.Fatalf("Failed to delete from transferred_cards")
+			t.Fatalf("Failed to delete from transferred_cards: %s", err.Error())
 		}
 		_, err = db.Exec("DELETE FROM transfers")
 		if err != nil {
-			t.Fatalf("Failed to delete from transfers")
+			t.Fatalf("Failed to delete from transfers: %s", err.Error())
 		}
 		_, err = db.Exec("DELETE FROM requested_cards")
 		if err != nil {
-			t.Fatalf("Failed to delete from requested_cards")
+			t.Fatalf("Failed to delete from requested_cards: %s", err.Error())
 		}
 		_, err = db.Exec("DELETE FROM requests")
 		if err != nil {
-			t.Fatalf("Failed to delete from requests")
+			t.Fatalf("Failed to delete from requests: %s", err.Error())
 		}
 		_, err = db.Exec("DELETE FROM cards")
 		if err != nil {
-			t.Fatalf("Failed to delete from cards")
+			t.Fatalf("Failed to delete from cards: %s", err.Error())
 		}
 		_, err = db.Exec("DELETE FROM users")
 		if err != nil {
-			t.Fatalf("Failed to delete from users")
+			t.Fatalf("Failed to delete from users: %s", err.Error())
 		}
 	}
 
