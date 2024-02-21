@@ -29,7 +29,8 @@ type Request struct {
 	ID        int64             `json:"id"`
 	Requestor string            `json:"requestor"`
 	Opened    time.Time         `json:"opened"`
-	Closed    time.Time         `json:"closed"`
+	Closed    *time.Time        `json:"closed"`
+	Quantity  int               `json:"quantity"`
 	Cards     []*RequestedCards `json:"cards"`
 }
 

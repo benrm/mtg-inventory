@@ -141,4 +141,9 @@ func TestSQL(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to request cards: %s", err.Error())
 	}
+
+	_, err = b.GetRequestsByRequestor(context.Background(), user1.Username, 10, 0)
+	if err != nil {
+		t.Fatalf("Failed to get requests: %s", err.Error())
+	}
 }
