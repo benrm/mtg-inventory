@@ -9,46 +9,33 @@ import (
 	inventory "github.com/benrm/mtg-inventory/golang/mtg-inventory"
 )
 
-func getUserByUsername(ctx context.Context, sp stmtPreparer, username string) (_ *fullUser, err error) {
+// GetUserByUsername gets a User by its username
+func (b *Backend) GetUserByUsername(ctx context.Context, username string) (_ *inventory.User, err error) {
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("error getting user by username %s: %w", username, err)
 		}
 	}()
 
-	queryStmt, err := sp.PrepareContext(ctx, "SELECT id, email FROM users WHERE username = ?")
+	queryStmt, err := b.DB.PrepareContext(ctx, "SELECT email FROM users WHERE username = ?")
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare select on users: %w", err)
 	}
 	defer queryStmt.Close()
 
-	var id int64
 	var email string
 	row := queryStmt.QueryRow(username)
-	err = row.Scan(&id, &email)
+	err = row.Scan(&email)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, inventory.ErrUserNoExist
 		}
 		return nil, fmt.Errorf("failed to scan row from select on users: %w", err)
 	}
-
-	return &fullUser{
-		ID: id,
-		User: &inventory.User{
-			Username: username,
-			Email:    email,
-		},
+	return &inventory.User{
+		Username: username,
+		Email:    email,
 	}, nil
-}
-
-// GetUserByUsername gets a User by its username
-func (b *Backend) GetUserByUsername(ctx context.Context, username string) (_ *inventory.User, err error) {
-	user, err := getUserByUsername(ctx, b.DB, username)
-	if err != nil {
-		return user.User, nil
-	}
-	return nil, err
 }
 
 // AddUser adds a User given its username and email

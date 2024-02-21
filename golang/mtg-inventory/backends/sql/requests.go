@@ -25,13 +25,10 @@ func (b *Backend) RequestCards(ctx context.Context, requestorUsername string, ro
 		}
 	}()
 
-	requestor, err := getUserByUsername(ctx, tx, requestorUsername)
-	if err != nil {
-		return nil, fmt.Errorf("error getting requestor id: %w", err)
-	}
-
 	insertRequestStmt, err := tx.PrepareContext(ctx, `INSERT INTO requests (requestor, opened)
-VALUES (?, ?)
+SELECT users.id, ?
+FROM users
+WHERE users.username = ?
 `)
 	if err != nil {
 		return nil, fmt.Errorf("error preparing request: %w", err)
@@ -39,7 +36,7 @@ VALUES (?, ?)
 
 	now := time.Now()
 
-	result, err := insertRequestStmt.ExecContext(ctx, requestor.ID, now)
+	result, err := insertRequestStmt.ExecContext(ctx, now, requestorUsername)
 	if err != nil {
 		return nil, fmt.Errorf("error inserting request: %w", err)
 	}
