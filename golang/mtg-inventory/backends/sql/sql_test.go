@@ -131,7 +131,7 @@ func TestSQL(t *testing.T) {
 		t.Fatalf("Failed to transfer cards: %s", err.Error())
 	}
 
-	_, err = b.RequestCards(context.Background(), user1.Username, []*inventory.RequestedCards{
+	request, err := b.RequestCards(context.Background(), user1.Username, []*inventory.RequestedCards{
 		{
 			Name:     "fake-card-name-2",
 			OracleID: "fake-oracle-ID-2",
@@ -145,5 +145,15 @@ func TestSQL(t *testing.T) {
 	_, err = b.GetRequestsByRequestor(context.Background(), user1.Username, 10, 0)
 	if err != nil {
 		t.Fatalf("Failed to get requests: %s", err.Error())
+	}
+
+	_, err = b.GetRequestByID(context.Background(), request.ID, 10, 0)
+	if err != nil {
+		t.Fatalf("Failed to get request by ID: %s", err.Error())
+	}
+
+	err = b.CloseRequest(context.Background(), request.ID)
+	if err != nil {
+		t.Fatalf("Failed to close request: %s", err.Error())
 	}
 }

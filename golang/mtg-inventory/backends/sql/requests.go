@@ -3,6 +3,7 @@ package sql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -31,6 +32,7 @@ OFFSET ?
 	if err != nil {
 		return nil, fmt.Errorf("error preparing select query: %w", err)
 	}
+	defer selectStmt.Close()
 
 	rows, err := selectStmt.QueryContext(ctx, requestorUsername, limit, offset)
 	if err != nil {
@@ -64,6 +66,86 @@ OFFSET ?
 	}
 
 	return requests, nil
+}
+
+// GetRequestByID returns a request and associated requested cards given an ID
+func (b *Backend) GetRequestByID(ctx context.Context, id int64, limit, offset int) (_ *inventory.Request, err error) {
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("error getting request by ID: %w", err)
+		}
+	}()
+
+	selectRequestStmt, err := b.DB.PrepareContext(ctx, `SELECT users.username, requests.opened, requests.closed
+FROM requests
+LEFT JOIN users ON requests.requestor = users.id
+WHERE requests.id = ?
+`)
+	if err != nil {
+		return nil, fmt.Errorf("error preparing select for request: %w", err)
+	}
+	defer selectRequestStmt.Close()
+
+	row := selectRequestStmt.QueryRowContext(ctx, id)
+	var requestor string
+	var opened time.Time
+	var closed sql.NullTime
+	err = row.Scan(&requestor, &opened, &closed)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, inventory.ErrRequestNoExist
+		}
+		return nil, fmt.Errorf("error scanning row for request: %w", err)
+	}
+
+	request := &inventory.Request{
+		ID:        id,
+		Requestor: requestor,
+		Opened:    opened,
+		Cards:     make([]*inventory.RequestedCards, 0),
+	}
+	if closed.Valid {
+		request.Closed = &closed.Time
+	}
+
+	selectCardsStmt, err := b.DB.PrepareContext(ctx, `SELECT quantity, name, oracle_id
+FROM requested_cards
+WHERE request_id = ?
+ORDER BY name
+LIMIT ?
+OFFSET ?
+`)
+	if err != nil {
+		return nil, fmt.Errorf("error preparing select for cards: %w", err)
+	}
+	defer selectCardsStmt.Close()
+
+	rows, err := selectCardsStmt.QueryContext(ctx, id, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("error executing select for cards: %w", err)
+	}
+	for rows.Next() {
+		var quantity int
+		var name, oracleID string
+		err = rows.Scan(&id, &name, &oracleID)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning row for cards: %w", err)
+		}
+
+		cards := &inventory.RequestedCards{
+			Quantity: quantity,
+			Name:     name,
+			OracleID: oracleID,
+		}
+		request.Quantity += quantity
+		request.Cards = append(request.Cards, cards)
+	}
+	err = rows.Err()
+	if err != nil {
+		return nil, fmt.Errorf("error getting next row of cards: %w", err)
+	}
+
+	return request, nil
 }
 
 // RequestCards creates a Request from the provided rows of RequestedCards
@@ -132,4 +214,29 @@ ON DUPLICATE KEY UPDATE quantity = quantity + ?
 	}
 
 	return request, nil
+}
+
+// CloseRequest sets the closed time on a Request
+func (b *Backend) CloseRequest(ctx context.Context, id int64) (err error) {
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("error closing request: %w", err)
+		}
+	}()
+
+	closeStmt, err := b.DB.PrepareContext(ctx, `UPDATE requests
+SET closed = NOW()
+WHERE id = ?
+`)
+	if err != nil {
+		return fmt.Errorf("error preparing update to close request: %w", err)
+	}
+	defer closeStmt.Close()
+
+	_, err = closeStmt.ExecContext(ctx, id)
+	if err != nil {
+		return fmt.Errorf("error updating request: %w", err)
+	}
+
+	return nil
 }
