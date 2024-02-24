@@ -8,7 +8,7 @@ import (
 )
 
 // GetCardsByOracleID gets cards based on their Oracle ID
-func (b *Backend) GetCardsByOracleID(ctx context.Context, oracleID string, limit, offset int) (_ []*inventory.CardRow, err error) {
+func (b *Backend) GetCardsByOracleID(ctx context.Context, oracleID string, limit, offset uint) (_ []*inventory.CardRow, err error) {
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("error getting cards by oracle ID: %w", err)
@@ -41,7 +41,7 @@ LIMIT ? OFFSET ?
 
 	cardRows := make([]*inventory.CardRow, 0)
 	for queryRows.Next() {
-		var quantity int
+		var quantity uint
 		var cardName, scryfallID, ownerUsername, keeperUsername string
 		var foil bool
 		err = queryRows.Scan(&quantity, &cardName, &scryfallID, &foil, &ownerUsername, &keeperUsername)
@@ -70,7 +70,7 @@ LIMIT ? OFFSET ?
 }
 
 // GetCardsByOwner gets cards based on their owner
-func (b *Backend) GetCardsByOwner(ctx context.Context, ownerUsername string, limit, offset int) (_ []*inventory.CardRow, err error) {
+func (b *Backend) GetCardsByOwner(ctx context.Context, ownerUsername string, limit, offset uint) (_ []*inventory.CardRow, err error) {
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("error getting cards by owner: %w", err)
@@ -103,7 +103,7 @@ func (b *Backend) GetCardsByOwner(ctx context.Context, ownerUsername string, lim
 
 	cardRows := make([]*inventory.CardRow, 0)
 	for queryRows.Next() {
-		var quantity int
+		var quantity uint
 		var cardName, oracleID, scryfallID, keeperUsername string
 		var foil bool
 		err = queryRows.Scan(&quantity, &cardName, &oracleID, &scryfallID, &foil, &keeperUsername)
@@ -132,7 +132,7 @@ func (b *Backend) GetCardsByOwner(ctx context.Context, ownerUsername string, lim
 }
 
 // GetCardsByKeeper gets cards based on their keeper
-func (b *Backend) GetCardsByKeeper(ctx context.Context, keeperUsername string, limit, offset int) (_ []*inventory.CardRow, err error) {
+func (b *Backend) GetCardsByKeeper(ctx context.Context, keeperUsername string, limit, offset uint) (_ []*inventory.CardRow, err error) {
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("error getting cards by keeper: %w", err)
@@ -165,7 +165,7 @@ func (b *Backend) GetCardsByKeeper(ctx context.Context, keeperUsername string, l
 
 	cardRows := make([]*inventory.CardRow, 0)
 	for queryRows.Next() {
-		var quantity int
+		var quantity uint
 		var cardName, oracleID, scryfallID, ownerUsername string
 		var foil bool
 		err = queryRows.Scan(&quantity, &cardName, &oracleID, &scryfallID, &foil, &ownerUsername)
@@ -199,9 +199,9 @@ func (b *Backend) AddCards(ctx context.Context, rows []*inventory.CardRow) (err 
 		return inventory.ErrTooManyRows
 	}
 	for _, row := range rows {
-		if row.Quantity <= 0 {
+		if row.Quantity == 0 {
 			return &inventory.RowError{
-				Err: inventory.ErrZeroOrFewerCards,
+				Err: inventory.ErrZeroCards,
 				Row: row,
 			}
 		}

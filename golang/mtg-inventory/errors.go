@@ -20,9 +20,9 @@ var (
 	// ErrTooManyRows is returned when too many rows are submitted
 	ErrTooManyRows = fmt.Errorf("more than %d rows", RowUploadLimit)
 
-	// ErrZeroOrFewerCards is returned when an uploaded row has zero or
+	// ErrZeroCards is returned when an uploaded row has zero or
 	// fewer cards
-	ErrZeroOrFewerCards = errors.New("zero or fewer cards")
+	ErrZeroCards = errors.New("zero cards")
 )
 
 // RowError describes an error that takes place because of a submitted row

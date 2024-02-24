@@ -18,7 +18,7 @@ type Card struct {
 
 // CardRow represents a row in the cards table
 type CardRow struct {
-	Quantity int    `json:"quantity"`
+	Quantity uint   `json:"quantity"`
 	Card     *Card  `json:"card"`
 	Owner    string `json:"owner"`
 	Keeper   string `json:"keeper"`
@@ -30,13 +30,13 @@ type Request struct {
 	Requestor string            `json:"requestor"`
 	Opened    time.Time         `json:"opened"`
 	Closed    *time.Time        `json:"closed"`
-	Quantity  int               `json:"quantity"`
+	Quantity  uint              `json:"quantity"`
 	Cards     []*RequestedCards `json:"cards"`
 }
 
 // RequestedCards represents a row in the requested_cards table
 type RequestedCards struct {
-	Quantity int    `json:"quantity"`
+	Quantity uint   `json:"quantity"`
 	Name     string `json:"name"`
 	OracleID string `json:"oracle_id"`
 }
@@ -54,7 +54,7 @@ type Transfer struct {
 
 // TransferredCards represents a row in the transferred_cards table
 type TransferredCards struct {
-	Quantity int    `json:"quantity"`
+	Quantity uint   `json:"quantity"`
 	Card     *Card  `json:"card"`
 	Owner    string `json:"owner"`
 }

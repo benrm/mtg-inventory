@@ -12,7 +12,7 @@ import (
 
 // GetRequestsByRequestor gets a number of requests made by the requestor up to
 // the provided limit
-func (b *Backend) GetRequestsByRequestor(ctx context.Context, requestorUsername string, limit, offset int) (_ []*inventory.Request, err error) {
+func (b *Backend) GetRequestsByRequestor(ctx context.Context, requestorUsername string, limit, offset uint) (_ []*inventory.Request, err error) {
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("error getting requests from %q: %w", requestorUsername, err)
@@ -50,7 +50,7 @@ OFFSET ?
 		var id int64
 		var opened time.Time
 		var closed sql.NullTime
-		var quantity int
+		var quantity uint
 		err = rows.Scan(&id, &opened, &closed, &quantity)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning row of select: %w", err)
@@ -75,7 +75,7 @@ OFFSET ?
 }
 
 // GetRequestByID returns a request and associated requested cards given an ID
-func (b *Backend) GetRequestByID(ctx context.Context, id int64, limit, offset int) (_ *inventory.Request, err error) {
+func (b *Backend) GetRequestByID(ctx context.Context, id int64, limit, offset uint) (_ *inventory.Request, err error) {
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("error getting request \"%d\": %w", id, err)
@@ -137,7 +137,7 @@ OFFSET ?
 		return nil, fmt.Errorf("error executing select for cards: %w", err)
 	}
 	for rows.Next() {
-		var quantity int
+		var quantity uint
 		var name, oracleID string
 		err = rows.Scan(&id, &name, &oracleID)
 		if err != nil {
@@ -166,9 +166,9 @@ func (b *Backend) RequestCards(ctx context.Context, requestorUsername string, ro
 		return nil, inventory.ErrTooManyRows
 	}
 	for _, row := range rows {
-		if row.Quantity <= 0 {
+		if row.Quantity == 0 {
 			return nil, &inventory.RowError{
-				Err: inventory.ErrZeroOrFewerCards,
+				Err: inventory.ErrZeroCards,
 				Row: row,
 			}
 		}

@@ -7,13 +7,13 @@ import (
 // Backend describes an object that maintains state about a Magic: the
 // Gathering inventory
 type Backend interface {
-	GetCardsByOracleID(ctx context.Context, oracleID string, limit, offset int) ([]*CardRow, error)
-	GetCardsByOwner(ctx context.Context, owner string, limit, offset int) ([]*CardRow, error)
-	GetCardsByKeeper(ctx context.Context, keeper string, limit, offset int) ([]*CardRow, error)
+	GetCardsByOracleID(ctx context.Context, oracleID string, limit, offset uint) ([]*CardRow, error)
+	GetCardsByOwner(ctx context.Context, owner string, limit, offset uint) ([]*CardRow, error)
+	GetCardsByKeeper(ctx context.Context, keeper string, limit, offset uint) ([]*CardRow, error)
 	AddCards(ctx context.Context, cardRows []*CardRow) error
 
-	GetRequestsByRequestor(ctx context.Context, requestor string, limit, offset int) ([]*Request, error)
-	GetRequestByID(ctx context.Context, id int64, limit, offset int) (*Request, error)
+	GetRequestsByRequestor(ctx context.Context, requestor string, limit, offset uint) ([]*Request, error)
+	GetRequestByID(ctx context.Context, id int64, limit, offset uint) (*Request, error)
 	RequestCards(ctx context.Context, requestor string, rows []*RequestedCards) (*Request, error)
 	CloseRequest(ctx context.Context, id int64) error
 

@@ -15,9 +15,9 @@ func (b *Backend) TransferCards(ctx context.Context, toUser, fromUser string, re
 		return nil, inventory.ErrTooManyRows
 	}
 	for _, row := range transferRows {
-		if row.Quantity <= 0 {
+		if row.Quantity == 0 {
 			return nil, &inventory.RowError{
-				Err: inventory.ErrZeroOrFewerCards,
+				Err: inventory.ErrZeroCards,
 				Row: row,
 			}
 		}
@@ -123,7 +123,7 @@ ON DUPLICATE KEY UPDATE quantity = quantity + ?
 			transferRow.Owner,
 			fromUser,
 		)
-		var quantity int
+		var quantity uint
 		err = row.Scan(&quantity)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan select row: %s", err)
