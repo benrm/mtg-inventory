@@ -19,6 +19,12 @@ func (b *Backend) GetRequestsByRequestor(ctx context.Context, requestorUsername 
 		}
 	}()
 
+	if limit == 0 {
+		limit = inventory.DefaultListLimit
+	} else if limit > inventory.MaxListLimit {
+		limit = inventory.MaxListLimit
+	}
+
 	selectStmt, err := b.DB.PrepareContext(ctx, `SELECT requests.id, requests.opened, requests.closed, SUM(rc.quantity)
 FROM requests
 LEFT JOIN requested_cards rc ON requests.id = rc.request_id
@@ -72,9 +78,15 @@ OFFSET ?
 func (b *Backend) GetRequestByID(ctx context.Context, id int64, limit, offset int) (_ *inventory.Request, err error) {
 	defer func() {
 		if err != nil {
-			err = fmt.Errorf("error getting request by ID: %w", err)
+			err = fmt.Errorf("error getting request \"%d\": %w", id, err)
 		}
 	}()
+
+	if limit == 0 {
+		limit = inventory.DefaultListLimit
+	} else if limit > inventory.MaxListLimit {
+		limit = inventory.MaxListLimit
+	}
 
 	selectRequestStmt, err := b.DB.PrepareContext(ctx, `SELECT users.username, requests.opened, requests.closed
 FROM requests
@@ -150,6 +162,18 @@ OFFSET ?
 
 // RequestCards creates a Request from the provided rows of RequestedCards
 func (b *Backend) RequestCards(ctx context.Context, requestorUsername string, rows []*inventory.RequestedCards) (_ *inventory.Request, err error) {
+	if len(rows) > inventory.RowUploadLimit {
+		return nil, inventory.ErrTooManyRows
+	}
+	for _, row := range rows {
+		if row.Quantity <= 0 {
+			return nil, &inventory.RowError{
+				Err: inventory.ErrZeroOrFewerCards,
+				Row: row,
+			}
+		}
+	}
+
 	tx, err := b.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error requesting cards: %w", err)
@@ -220,7 +244,7 @@ ON DUPLICATE KEY UPDATE quantity = quantity + ?
 func (b *Backend) CloseRequest(ctx context.Context, id int64) (err error) {
 	defer func() {
 		if err != nil {
-			err = fmt.Errorf("error closing request: %w", err)
+			err = fmt.Errorf("error closing request \"%d\": %w", id, err)
 		}
 	}()
 
@@ -233,9 +257,18 @@ WHERE id = ?
 	}
 	defer closeStmt.Close()
 
-	_, err = closeStmt.ExecContext(ctx, id)
+	result, err := closeStmt.ExecContext(ctx, id)
 	if err != nil {
 		return fmt.Errorf("error updating request: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("error getting result: %w", err)
+	}
+
+	if rowsAffected <= 0 {
+		return inventory.ErrRequestNoExist
 	}
 
 	return nil

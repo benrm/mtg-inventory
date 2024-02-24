@@ -11,6 +11,18 @@ import (
 
 // TransferCards transfers cards between two users
 func (b *Backend) TransferCards(ctx context.Context, toUser, fromUser string, requestIDIn *int64, transferRows []*inventory.TransferredCards) (_ *inventory.Transfer, err error) {
+	if len(transferRows) > inventory.RowUploadLimit {
+		return nil, inventory.ErrTooManyRows
+	}
+	for _, row := range transferRows {
+		if row.Quantity <= 0 {
+			return nil, &inventory.RowError{
+				Err: inventory.ErrZeroOrFewerCards,
+				Row: row,
+			}
+		}
+	}
+
 	tx, err := b.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error transferring cards: %w", err)

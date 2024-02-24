@@ -15,6 +15,12 @@ func (b *Backend) GetCardsByOracleID(ctx context.Context, oracleID string, limit
 		}
 	}()
 
+	if limit == 0 {
+		limit = inventory.DefaultListLimit
+	} else if limit > inventory.MaxListLimit {
+		limit = inventory.MaxListLimit
+	}
+
 	queryStmt, err := b.DB.PrepareContext(ctx, `SELECT cards.quantity, cards.name, cards.scryfall_id, cards.foil, owners.username, keepers.username
 FROM cards
 LEFT JOIN users owners ON cards.owner = owners.id
@@ -70,6 +76,12 @@ func (b *Backend) GetCardsByOwner(ctx context.Context, ownerUsername string, lim
 			err = fmt.Errorf("error getting cards by owner: %w", err)
 		}
 	}()
+
+	if limit == 0 {
+		limit = inventory.DefaultListLimit
+	} else if limit > inventory.MaxListLimit {
+		limit = inventory.MaxListLimit
+	}
 
 	queryStmt, err := b.DB.PrepareContext(ctx, `SELECT cards.quantity, cards.name, cards.oracle_id, cards.scryfall_id, cards.foil, keepers.username
 	FROM cards
@@ -127,6 +139,12 @@ func (b *Backend) GetCardsByKeeper(ctx context.Context, keeperUsername string, l
 		}
 	}()
 
+	if limit == 0 {
+		limit = inventory.DefaultListLimit
+	} else if limit > inventory.MaxListLimit {
+		limit = inventory.MaxListLimit
+	}
+
 	queryStmt, err := b.DB.PrepareContext(ctx, `SELECT cards.quantity, cards.name, cards.oracle_id, cards.scryfall_id, cards.foil, owners.username
 	FROM cards
 	LEFT JOIN users owners ON cards.owner = owners.id
@@ -176,7 +194,19 @@ func (b *Backend) GetCardsByKeeper(ctx context.Context, keeperUsername string, l
 }
 
 // AddCards adds cards given a slice of them
-func (b *Backend) AddCards(ctx context.Context, cardRows []*inventory.CardRow) (err error) {
+func (b *Backend) AddCards(ctx context.Context, rows []*inventory.CardRow) (err error) {
+	if len(rows) > inventory.RowUploadLimit {
+		return inventory.ErrTooManyRows
+	}
+	for _, row := range rows {
+		if row.Quantity <= 0 {
+			return &inventory.RowError{
+				Err: inventory.ErrZeroOrFewerCards,
+				Row: row,
+			}
+		}
+	}
+
 	tx, err := b.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("error adding cards: %w", err)
@@ -203,7 +233,7 @@ ON DUPLICATE KEY UPDATE quantity = quantity + ?
 	}
 	defer upsertStmt.Close()
 
-	for _, cardRow := range cardRows {
+	for _, cardRow := range rows {
 		_, err := upsertStmt.ExecContext(ctx,
 			cardRow.Quantity,
 			cardRow.Card.Name,
