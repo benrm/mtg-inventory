@@ -11,6 +11,7 @@ type Backend interface {
 	GetCardsByOwner(ctx context.Context, owner string, limit, offset uint) ([]*CardRow, error)
 	GetCardsByKeeper(ctx context.Context, keeper string, limit, offset uint) ([]*CardRow, error)
 	AddCards(ctx context.Context, cardRows []*CardRow) error
+	ModifyCardQuantity(ctx context.Context, owner, keeper, scryfallID string, foil bool, quantity uint) error
 
 	GetRequestsByRequestor(ctx context.Context, requestor string, limit, offset uint) ([]*Request, error)
 	GetRequestByID(ctx context.Context, id int64, limit, offset uint) (*Request, error)

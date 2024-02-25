@@ -70,35 +70,60 @@ func TestSQL(t *testing.T) {
 		t.Fatalf("Failed to get user by username: %s", err.Error())
 	}
 
-	fakeCard := &inventory.Card{
-		Name:       "fake-card-name",
-		OracleID:   "fake-oracle-ID",
-		ScryfallID: "fake-scryfall-ID",
+	fakeCard1 := &inventory.Card{
+		Name:       "fake-card-name-1",
+		OracleID:   "fake-oracle-ID-1",
+		ScryfallID: "fake-scryfall-ID-1",
 		Foil:       false,
 	}
 
-	fakeCardRow := &inventory.CardRow{
+	fakeCardRow1 := &inventory.CardRow{
 		Quantity: 1,
-		Card:     fakeCard,
+		Card:     fakeCard1,
+		Owner:    user1.Username,
+		Keeper:   user1.Username,
+	}
+
+	fakeCard2 := &inventory.Card{
+		Name:       "fake-card-name-2",
+		OracleID:   "fake-oracle-ID-2",
+		ScryfallID: "fake-scryfall-ID-2",
+		Foil:       false,
+	}
+
+	fakeCardRow2 := &inventory.CardRow{
+		Quantity: 1,
+		Card:     fakeCard2,
 		Owner:    user1.Username,
 		Keeper:   user1.Username,
 	}
 
 	err = b.AddCards(context.Background(), []*inventory.CardRow{
-		fakeCardRow,
+		fakeCardRow1,
+		fakeCardRow2,
 	})
 	if err != nil {
 		t.Fatalf("Failed to insert cards: %s", err.Error())
 	}
 
 	err = b.AddCards(context.Background(), []*inventory.CardRow{
-		fakeCardRow,
+		fakeCardRow1,
 	})
 	if err != nil {
 		t.Fatalf("Failed to update cards: %s", err.Error())
 	}
 
-	_, err = b.GetCardsByOracleID(context.Background(), fakeCard.OracleID, inventory.DefaultListLimit, 0)
+	err = b.ModifyCardQuantity(context.Background(), user1.Username, user1.Username, fakeCard1.ScryfallID, false, 7)
+	if err != nil {
+		t.Fatalf("Failed to update card quantity: %s", err.Error())
+	}
+
+	err = b.ModifyCardQuantity(context.Background(), user1.Username, user1.Username, fakeCard2.ScryfallID, false, 0)
+	if err != nil {
+		t.Fatalf("Failed to update card quantity: %s", err.Error())
+	}
+
+	_, err = b.GetCardsByOracleID(context.Background(), fakeCard1.OracleID, inventory.DefaultListLimit, 0)
 	if err != nil {
 		t.Fatalf("Failed to get cards by oracle ID: %s", err.Error())
 	}
@@ -146,7 +171,7 @@ func TestSQL(t *testing.T) {
 
 	fakeTransferRow := &inventory.TransferredCards{
 		Quantity: 1,
-		Card:     fakeCard,
+		Card:     fakeCard1,
 		Owner:    user1.Username,
 	}
 

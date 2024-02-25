@@ -256,3 +256,47 @@ ON DUPLICATE KEY UPDATE quantity = quantity + ?
 
 	return nil
 }
+
+// ModifyCardQuantity modifies the quantity of a card row that exists
+func (b *Backend) ModifyCardQuantity(ctx context.Context, owner, keeper, scryfallID string, foil bool, quantity uint) (err error) {
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("error modifying quantity of %q for %q: %w", scryfallID, owner, err)
+		}
+	}()
+
+	if quantity == 0 {
+		deleteStmt, err := b.DB.PrepareContext(ctx, `DELETE cards
+FROM cards
+LEFT JOIN users owners ON owners.id = cards.owner
+LEFT JOIN users keepers ON keepers.id = cards.keeper
+WHERE scryfall_id = ? AND foil = ? AND owners.username = ? AND keepers.username = ?
+`)
+		if err != nil {
+			return fmt.Errorf("failed to prepare delete: %w", err)
+		}
+
+		_, err = deleteStmt.ExecContext(ctx, scryfallID, foil, owner, keeper)
+		if err != nil {
+			return fmt.Errorf("failed to delete: %w", err)
+		}
+
+		return nil
+	}
+
+	upsertStmt, err := b.DB.PrepareContext(ctx, `UPDATE cards
+LEFT JOIN users owners ON owners.id = cards.owner
+LEFT JOIN users keepers ON keepers.id = cards.keeper
+SET cards.quantity = ?
+WHERE scryfall_id = ? AND foil = ? AND owners.username = ? AND keepers.username = ?`)
+	if err != nil {
+		return fmt.Errorf("failed to prepare update: %w", err)
+	}
+
+	_, err = upsertStmt.ExecContext(ctx, quantity, scryfallID, foil, owner, keeper)
+	if err != nil {
+		return fmt.Errorf("failed to update: %w", err)
+	}
+
+	return nil
+}
