@@ -3,6 +3,7 @@ package sql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -10,23 +11,306 @@ import (
 )
 
 // GetTransfersByToUser returns Transfers based on their ToUser
-func (b *Backend) GetTransfersByToUser(_ context.Context, _ string, _, _ uint) (_ []*inventory.Transfer, _ error) {
-	return nil, inventory.ErrUnimplemented
+func (b *Backend) GetTransfersByToUser(ctx context.Context, toUser string, limit, offset uint) (_ []*inventory.Transfer, err error) {
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("error getting transfers to %q: %w", toUser, err)
+		}
+	}()
+
+	if limit == 0 {
+		limit = inventory.DefaultListLimit
+	} else if limit > inventory.MaxListLimit {
+		limit = inventory.MaxListLimit
+	}
+
+	selectStmt, err := b.DB.PrepareContext(ctx, `SELECT transfers.id, transfers.request_id, from_users.username, transfers.opened, transfers.closed, SUM(tc.quantity)
+FROM transfers
+LEFT JOIN users from_users ON transfers.from_user = from_users.id
+LEFT JOIN users to_users ON transfers.to_user = to_users.id
+LEFT JOIN transferred_cards tc ON tc.transfer_id = transfers.id
+WHERE to_users.username = ?
+GROUP BY transfers.id
+ORDER BY transfers.opened
+LIMIT ?
+OFFSET ?
+`)
+	if err != nil {
+		return nil, fmt.Errorf("error preparing select query: %w", err)
+	}
+	defer selectStmt.Close()
+
+	rows, err := selectStmt.QueryContext(ctx, toUser, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("error executing select query: %w", err)
+	}
+
+	transfers := make([]*inventory.Transfer, 0)
+	for rows.Next() {
+		var id int64
+		var requestID sql.NullInt64
+		var fromUser string
+		var opened time.Time
+		var closed sql.NullTime
+		var quantity uint
+		err = rows.Scan(&id, &requestID, &fromUser, &opened, &closed, &quantity)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning row of select: %w", err)
+		}
+		transfer := &inventory.Transfer{
+			ID:       id,
+			ToUser:   toUser,
+			FromUser: fromUser,
+			Opened:   opened,
+			Quantity: quantity,
+		}
+		if requestID.Valid {
+			transfer.RequestID = &requestID.Int64
+		}
+		if closed.Valid {
+			transfer.Closed = &closed.Time
+		}
+		transfers = append(transfers, transfer)
+	}
+	err = rows.Err()
+	if err != nil {
+		return nil, fmt.Errorf("error getting next row of select: %w", err)
+	}
+
+	return transfers, nil
 }
 
 // GetTransfersByFromUser returns Transfers based on their FromUser
-func (b *Backend) GetTransfersByFromUser(_ context.Context, _ string, _, _ uint) (_ []*inventory.Transfer, _ error) {
-	return nil, inventory.ErrUnimplemented
+func (b *Backend) GetTransfersByFromUser(ctx context.Context, fromUser string, limit, offset uint) (_ []*inventory.Transfer, err error) {
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("error getting transfers from %q: %w", fromUser, err)
+		}
+	}()
+
+	if limit == 0 {
+		limit = inventory.DefaultListLimit
+	} else if limit > inventory.MaxListLimit {
+		limit = inventory.MaxListLimit
+	}
+
+	selectStmt, err := b.DB.PrepareContext(ctx, `SELECT transfers.id, transfers.request_id, to_users.username, transfers.opened, transfers.closed, SUM(tc.quantity)
+FROM transfers
+LEFT JOIN users from_users ON transfers.from_user = from_users.id
+LEFT JOIN users to_users ON transfers.to_user = to_users.id
+LEFT JOIN transferred_cards tc ON tc.transfer_id = transfers.id
+WHERE from_users.username = ?
+GROUP BY transfers.id
+ORDER BY transfers.opened
+LIMIT ?
+OFFSET ?
+`)
+	if err != nil {
+		return nil, fmt.Errorf("error preparing select query: %w", err)
+	}
+	defer selectStmt.Close()
+
+	rows, err := selectStmt.QueryContext(ctx, fromUser, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("error executing select query: %w", err)
+	}
+
+	transfers := make([]*inventory.Transfer, 0)
+	for rows.Next() {
+		var id int64
+		var requestID sql.NullInt64
+		var toUser string
+		var opened time.Time
+		var closed sql.NullTime
+		var quantity uint
+		err = rows.Scan(&id, &requestID, &toUser, &opened, &closed, &quantity)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning row of select: %w", err)
+		}
+		transfer := &inventory.Transfer{
+			ID:       id,
+			ToUser:   toUser,
+			FromUser: fromUser,
+			Opened:   opened,
+			Quantity: quantity,
+		}
+		if requestID.Valid {
+			transfer.RequestID = &requestID.Int64
+		}
+		if closed.Valid {
+			transfer.Closed = &closed.Time
+		}
+		transfers = append(transfers, transfer)
+	}
+	err = rows.Err()
+	if err != nil {
+		return nil, fmt.Errorf("error getting next row of select: %w", err)
+	}
+
+	return transfers, nil
 }
 
 // GetTransfersByRequestID returns Transfers based on their RequestID
-func (b *Backend) GetTransfersByRequestID(_ context.Context, _ int64, _, _ uint) (_ []*inventory.Transfer, _ error) {
-	return nil, inventory.ErrUnimplemented
+func (b *Backend) GetTransfersByRequestID(ctx context.Context, requestID int64, limit, offset uint) (_ []*inventory.Transfer, err error) {
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("error getting transfers with request ID \"%d\": %w", requestID, err)
+		}
+	}()
+
+	if limit == 0 {
+		limit = inventory.DefaultListLimit
+	} else if limit > inventory.MaxListLimit {
+		limit = inventory.MaxListLimit
+	}
+
+	selectStmt, err := b.DB.PrepareContext(ctx, `SELECT transfers.id, to_users.username, from_users.username, transfers.opened, transfers.closed, SUM(tc.quantity)
+FROM transfers
+LEFT JOIN users from_users ON transfers.from_user = from_users.id
+LEFT JOIN users to_users ON transfers.to_user = to_users.id
+LEFT JOIN transferred_cards tc ON tc.transfer_id = transfers.id
+WHERE transfers.request_id = ?
+GROUP BY transfers.id
+ORDER BY transfers.opened
+LIMIT ?
+OFFSET ?
+`)
+	if err != nil {
+		return nil, fmt.Errorf("error preparing select query: %w", err)
+	}
+	defer selectStmt.Close()
+
+	rows, err := selectStmt.QueryContext(ctx, requestID, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("error executing select query: %w", err)
+	}
+
+	transfers := make([]*inventory.Transfer, 0)
+	for rows.Next() {
+		var id int64
+		var toUser, fromUser string
+		var opened time.Time
+		var closed sql.NullTime
+		var quantity uint
+		err = rows.Scan(&id, &toUser, &fromUser, &opened, &closed, &quantity)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning row of select: %w", err)
+		}
+		transfer := &inventory.Transfer{
+			ID:        id,
+			RequestID: &requestID,
+			ToUser:    toUser,
+			FromUser:  fromUser,
+			Opened:    opened,
+			Quantity:  quantity,
+		}
+		if closed.Valid {
+			transfer.Closed = &closed.Time
+		}
+		transfers = append(transfers, transfer)
+	}
+	err = rows.Err()
+	if err != nil {
+		return nil, fmt.Errorf("error getting next row of select: %w", err)
+	}
+
+	return transfers, nil
 }
 
 // GetTransferByID returns a Transfer based on its ID
-func (b *Backend) GetTransferByID(_ context.Context, _ int64) (_ *inventory.Transfer, _ error) {
-	return nil, inventory.ErrUnimplemented
+func (b *Backend) GetTransferByID(ctx context.Context, id int64, limit, offset uint) (_ *inventory.Transfer, err error) {
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("error getting transfer \"%d\": %w", id, err)
+		}
+	}()
+
+	if limit == 0 {
+		limit = inventory.DefaultListLimit
+	} else if limit > inventory.MaxListLimit {
+		limit = inventory.MaxListLimit
+	}
+
+	selectTransferStmt, err := b.DB.PrepareContext(ctx, `SELECT transfers.request_id, to_users.username, from_users.username, opened, closed
+FROM transfers
+LEFT JOIN users to_users ON to_users.id = transfers.to_user
+LEFT JOIN users from_users ON from_users.id = transfers.from_user
+WHERE transfers.id = ?
+`)
+	if err != nil {
+		return nil, fmt.Errorf("error preparing select for transfer: %w", err)
+	}
+	defer selectTransferStmt.Close()
+
+	row := selectTransferStmt.QueryRowContext(ctx, id)
+	var requestID sql.NullInt64
+	var toUser, fromUser string
+	var opened time.Time
+	var closed sql.NullTime
+	err = row.Scan(&requestID, &toUser, &fromUser, &opened, &closed)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, inventory.ErrTransferNoExist
+		}
+		return nil, fmt.Errorf("error scanning row for transfer: %w", err)
+	}
+
+	transfer := &inventory.Transfer{
+		ID:       id,
+		ToUser:   toUser,
+		FromUser: fromUser,
+		Opened:   opened,
+		Cards:    make([]*inventory.TransferredCards, 0),
+	}
+	if requestID.Valid {
+		transfer.RequestID = &requestID.Int64
+	}
+	if closed.Valid {
+		transfer.Closed = &closed.Time
+	}
+
+	selectCardsStmt, err := b.DB.PrepareContext(ctx, `SELECT tc.quantity, tc.name, tc.scryfall_id, tc.foil, owners.username
+FROM transferred_cards AS tc
+LEFT JOIN users owners ON owners.id = tc.owner
+WHERE tc.transfer_id = ?
+ORDER BY name, owners.username
+LIMIT ?
+OFFSET ?
+`)
+	if err != nil {
+		return nil, fmt.Errorf("error preparing select for cards: %w", err)
+	}
+	defer selectCardsStmt.Close()
+
+	rows, err := selectCardsStmt.QueryContext(ctx, id, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("error executing select for cards: %w", err)
+	}
+	for rows.Next() {
+		var quantity uint
+		var name, scryfallID, owner string
+		var foil bool
+		err = rows.Scan(&quantity, &name, &scryfallID, &foil, &owner)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning row for cards: %w", err)
+		}
+		transferredCardsRow := &inventory.TransferredCards{
+			Quantity: quantity,
+			Card: &inventory.Card{
+				Name:       name,
+				ScryfallID: scryfallID,
+				Foil:       foil,
+			},
+			Owner: owner,
+		}
+		transfer.Cards = append(transfer.Cards, transferredCardsRow)
+	}
+	err = rows.Err()
+	if err != nil {
+		return nil, fmt.Errorf("error getting next row of cards: %w", err)
+	}
+
+	return transfer, nil
 }
 
 // OpenTransfer creates a transfer

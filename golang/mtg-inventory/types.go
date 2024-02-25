@@ -48,7 +48,8 @@ type Transfer struct {
 	ToUser    string              `json:"to_user"`
 	FromUser  string              `json:"from_user"`
 	Opened    time.Time           `json:"created"`
-	Closed    time.Time           `json:"executed"`
+	Closed    *time.Time          `json:"executed"`
+	Quantity  uint                `json:"quantity"`
 	Cards     []*TransferredCards `json:"cards"`
 }
 

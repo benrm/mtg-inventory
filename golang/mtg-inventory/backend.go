@@ -20,7 +20,7 @@ type Backend interface {
 	GetTransfersByToUser(ctx context.Context, toUser string, limit, offset uint) ([]*Transfer, error)
 	GetTransfersByFromUser(ctx context.Context, fromUser string, limit, offset uint) ([]*Transfer, error)
 	GetTransfersByRequestID(ctx context.Context, requestID int64, limit, offset uint) ([]*Transfer, error)
-	GetTransferByID(ctx context.Context, id int64) (*Transfer, error)
+	GetTransferByID(ctx context.Context, id int64, limit, offset uint) (*Transfer, error)
 	OpenTransfer(ctx context.Context, toUser, fromUser string, request *int64, rows []*TransferredCards) (*Transfer, error)
 	CloseTransfer(ctx context.Context, id int64) error
 
