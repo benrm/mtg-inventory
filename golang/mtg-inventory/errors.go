@@ -23,6 +23,9 @@ var (
 	// ErrZeroCards is returned when an uploaded row has zero or
 	// fewer cards
 	ErrZeroCards = errors.New("zero cards")
+
+	// ErrUnimplemented is returned when a function is not implemented
+	ErrUnimplemented = errors.New("unimplemented")
 )
 
 // RowError describes an error that takes place because of a submitted row

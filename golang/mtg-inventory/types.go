@@ -47,8 +47,8 @@ type Transfer struct {
 	RequestID *int64              `json:"request_id"`
 	ToUser    string              `json:"to_user"`
 	FromUser  string              `json:"from_user"`
-	Created   time.Time           `json:"created"`
-	Executed  time.Time           `json:"executed"`
+	Opened    time.Time           `json:"created"`
+	Closed    time.Time           `json:"executed"`
 	Cards     []*TransferredCards `json:"cards"`
 }
 

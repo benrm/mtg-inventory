@@ -14,10 +14,15 @@ type Backend interface {
 
 	GetRequestsByRequestor(ctx context.Context, requestor string, limit, offset uint) ([]*Request, error)
 	GetRequestByID(ctx context.Context, id int64, limit, offset uint) (*Request, error)
-	RequestCards(ctx context.Context, requestor string, rows []*RequestedCards) (*Request, error)
+	OpenRequest(ctx context.Context, requestor string, rows []*RequestedCards) (*Request, error)
 	CloseRequest(ctx context.Context, id int64) error
 
-	TransferCards(ctx context.Context, toUser, fromUser string, request *int64, rows []*TransferredCards) (*Transfer, error)
+	GetTransfersByToUser(ctx context.Context, toUser string, limit, offset uint) ([]*Transfer, error)
+	GetTransfersByFromUser(ctx context.Context, fromUser string, limit, offset uint) ([]*Transfer, error)
+	GetTransfersByRequestID(ctx context.Context, requestID int64, limit, offset uint) ([]*Transfer, error)
+	GetTransferByID(ctx context.Context, id int64) (*Transfer, error)
+	OpenTransfer(ctx context.Context, toUser, fromUser string, request *int64, rows []*TransferredCards) (*Transfer, error)
+	CloseTransfer(ctx context.Context, id int64) error
 
 	GetUserByUsername(ctx context.Context, username string) (*User, error)
 	AddUser(ctx context.Context, username, email string) (*User, error)

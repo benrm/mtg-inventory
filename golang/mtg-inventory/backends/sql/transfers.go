@@ -9,8 +9,28 @@ import (
 	inventory "github.com/benrm/mtg-inventory/golang/mtg-inventory"
 )
 
-// TransferCards transfers cards between two users
-func (b *Backend) TransferCards(ctx context.Context, toUser, fromUser string, requestIDIn *int64, transferRows []*inventory.TransferredCards) (_ *inventory.Transfer, err error) {
+// GetTransfersByToUser returns Transfers based on their ToUser
+func (b *Backend) GetTransfersByToUser(_ context.Context, _ string, _, _ uint) (_ []*inventory.Transfer, _ error) {
+	return nil, inventory.ErrUnimplemented
+}
+
+// GetTransfersByFromUser returns Transfers based on their FromUser
+func (b *Backend) GetTransfersByFromUser(_ context.Context, _ string, _, _ uint) (_ []*inventory.Transfer, _ error) {
+	return nil, inventory.ErrUnimplemented
+}
+
+// GetTransfersByRequestID returns Transfers based on their RequestID
+func (b *Backend) GetTransfersByRequestID(_ context.Context, _ int64, _, _ uint) (_ []*inventory.Transfer, _ error) {
+	return nil, inventory.ErrUnimplemented
+}
+
+// GetTransferByID returns a Transfer based on its ID
+func (b *Backend) GetTransferByID(_ context.Context, _ int64) (_ *inventory.Transfer, _ error) {
+	return nil, inventory.ErrUnimplemented
+}
+
+// OpenTransfer creates a transfer
+func (b *Backend) OpenTransfer(ctx context.Context, toUser, fromUser string, requestIDIn *int64, transferRows []*inventory.TransferredCards) (_ *inventory.Transfer, err error) {
 	if len(transferRows) > inventory.RowUploadLimit {
 		return nil, inventory.ErrTooManyRows
 	}
@@ -45,7 +65,7 @@ func (b *Backend) TransferCards(ctx context.Context, toUser, fromUser string, re
 		requestID.Int64 = *requestIDIn
 		requestID.Valid = true
 	}
-	insertTransferStmt, err := tx.PrepareContext(ctx, `INSERT INTO transfers (to_user, from_user, request_id, created)
+	insertTransferStmt, err := tx.PrepareContext(ctx, `INSERT INTO transfers (to_user, from_user, request_id, opened)
 SELECT to_users.id, from_users.id, ?, ?
 FROM users to_users, users from_users
 WHERE to_users.username = ? AND from_users.username = ?
@@ -68,7 +88,7 @@ WHERE to_users.username = ? AND from_users.username = ?
 		RequestID: requestIDIn,
 		ToUser:    toUser,
 		FromUser:  fromUser,
-		Created:   now,
+		Opened:    now,
 		Cards:     transferRows,
 	}
 
@@ -155,4 +175,38 @@ ON DUPLICATE KEY UPDATE quantity = quantity + ?
 	}
 
 	return transfer, nil
+}
+
+// CloseTransfer sets the closed time on a Transfer
+func (b *Backend) CloseTransfer(ctx context.Context, id int64) (err error) {
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("error closing transfer \"%d\": %w", id, err)
+		}
+	}()
+
+	closeStmt, err := b.DB.PrepareContext(ctx, `UPDATE transfers
+SET closed = NOW()
+WHERE id = ?
+`)
+	if err != nil {
+		return fmt.Errorf("error preparing update to close transfer: %w", err)
+	}
+	defer closeStmt.Close()
+
+	result, err := closeStmt.ExecContext(ctx, id)
+	if err != nil {
+		return fmt.Errorf("error updating transfer: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("error getting transfer: %w", err)
+	}
+
+	if rowsAffected <= 0 {
+		return inventory.ErrTransferNoExist
+	}
+
+	return nil
 }

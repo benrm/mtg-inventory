@@ -160,8 +160,8 @@ OFFSET ?
 	return request, nil
 }
 
-// RequestCards creates a Request from the provided rows of RequestedCards
-func (b *Backend) RequestCards(ctx context.Context, requestorUsername string, rows []*inventory.RequestedCards) (_ *inventory.Request, err error) {
+// OpenRequest creates a Request from the provided rows of RequestedCards
+func (b *Backend) OpenRequest(ctx context.Context, requestorUsername string, rows []*inventory.RequestedCards) (_ *inventory.Request, err error) {
 	if len(rows) > inventory.RowUploadLimit {
 		return nil, inventory.ErrTooManyRows
 	}

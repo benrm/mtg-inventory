@@ -124,14 +124,14 @@ func TestSQL(t *testing.T) {
 		Owner:    user1.Username,
 	}
 
-	_, err = b.TransferCards(context.Background(), user2.Username, user1.Username, nil, []*inventory.TransferredCards{
+	_, err = b.OpenTransfer(context.Background(), user2.Username, user1.Username, nil, []*inventory.TransferredCards{
 		fakeTransferRow,
 	})
 	if err != nil {
 		t.Fatalf("Failed to transfer cards: %s", err.Error())
 	}
 
-	request, err := b.RequestCards(context.Background(), user1.Username, []*inventory.RequestedCards{
+	request, err := b.OpenRequest(context.Background(), user1.Username, []*inventory.RequestedCards{
 		{
 			Name:     "fake-card-name-2",
 			OracleID: "fake-oracle-ID-2",

@@ -44,8 +44,8 @@ CREATE TABLE IF NOT EXISTS transfers (
 	request_id INT,
 	to_user INT NOT NULL,
 	from_user INT NOT NULL,
-	created DATETIME NOT NULL,
-	executed DATETIME,
+	opened DATETIME NOT NULL,
+	closed DATETIME,
 	FOREIGN KEY (to_user) REFERENCES users(id),
 	FOREIGN KEY (from_user) REFERENCES users(id),
 	FOREIGN KEY (request_id) REFERENCES requests(id)

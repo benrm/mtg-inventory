@@ -5,8 +5,6 @@ package sql
 
 import (
 	"database/sql"
-
-	inventory "github.com/benrm/mtg-inventory/golang/mtg-inventory"
 )
 
 // Backend contains everything needed to run a SQL backend
@@ -15,7 +13,7 @@ type Backend struct {
 }
 
 // NewBackend returns an instantiated Backend
-func NewBackend(db *sql.DB) inventory.Backend {
+func NewBackend(db *sql.DB) *Backend {
 	return &Backend{
 		DB: db,
 	}
