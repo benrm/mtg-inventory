@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS transfers (
 	closed DATETIME,
 	FOREIGN KEY (to_user) REFERENCES users(id),
 	FOREIGN KEY (from_user) REFERENCES users(id),
-	FOREIGN KEY (request_id) REFERENCES requests(id)
+	FOREIGN KEY (request_id) REFERENCES requests(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS transferred_cards (
@@ -59,6 +59,6 @@ CREATE TABLE IF NOT EXISTS transferred_cards (
 	foil BOOLEAN,
 	owner INT NOT NULL,
 	UNIQUE (transfer_id, scryfall_id, foil, owner),
-	FOREIGN KEY (transfer_id) REFERENCES transfers(id),
+	FOREIGN KEY (transfer_id) REFERENCES transfers(id) ON DELETE CASCADE,
 	FOREIGN KEY (owner) REFERENCES users(id)
 );

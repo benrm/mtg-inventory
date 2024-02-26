@@ -24,6 +24,10 @@ var (
 	// fewer cards
 	ErrZeroCards = errors.New("zero cards")
 
+	// ErrTooFewCards is returned when there are not enough cards to
+	// complete a transfer
+	ErrTooFewCards = errors.New("too few cards")
+
 	// ErrUnimplemented is returned when a function is not implemented
 	ErrUnimplemented = errors.New("unimplemented")
 )

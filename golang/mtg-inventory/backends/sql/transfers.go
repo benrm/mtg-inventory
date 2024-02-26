@@ -329,15 +329,15 @@ func (b *Backend) OpenTransfer(ctx context.Context, toUser, fromUser string, req
 
 	tx, err := b.DB.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, fmt.Errorf("error transferring cards: %w", err)
+		return nil, fmt.Errorf("error opening transfer: %w", err)
 	}
 	defer func() {
 		if err != nil {
 			rollbackErr := tx.Rollback()
 			if rollbackErr != nil {
-				err = fmt.Errorf("error transferring cards: %w, unable to rollback: %s", err, rollbackErr)
+				err = fmt.Errorf("error opening transfer: %w, unable to rollback: %s", err, rollbackErr)
 			} else {
-				err = fmt.Errorf("error transferring cards: %w", err)
+				err = fmt.Errorf("error opening transfer: %w", err)
 			}
 		}
 	}()
@@ -461,15 +461,171 @@ ON DUPLICATE KEY UPDATE quantity = quantity + ?
 	return transfer, nil
 }
 
-// CloseTransfer sets the closed time on a Transfer
-func (b *Backend) CloseTransfer(ctx context.Context, id int64) (err error) {
+// CancelTransfer cancels a transfer, deleting it from the database
+func (b *Backend) CancelTransfer(ctx context.Context, id int64) (err error) {
 	defer func() {
 		if err != nil {
-			err = fmt.Errorf("error closing transfer \"%d\": %w", id, err)
+			err = fmt.Errorf("error canceling transfer \"%d\": %w", id, err)
 		}
 	}()
 
-	closeStmt, err := b.DB.PrepareContext(ctx, `UPDATE transfers
+	deleteStmt, err := b.DB.PrepareContext(ctx, `DELETE FROM transfers WHERE id = ?`)
+	if err != nil {
+		return fmt.Errorf("error preparing transfer delete: %w", err)
+	}
+
+	result, err := deleteStmt.ExecContext(ctx, id)
+	if err != nil {
+		return fmt.Errorf("error executing transfer delete: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("error getting rows affected: %w", err)
+	}
+
+	if rowsAffected <= 0 {
+		return inventory.ErrTransferNoExist
+	}
+
+	return nil
+}
+
+// CloseTransfer sets the closed time on a Transfer and reassigns the keeper of
+// the cards
+func (b *Backend) CloseTransfer(ctx context.Context, id int64) (err error) {
+	tx, err := b.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("error closing transfer \"%d\": %w", id, err)
+	}
+	defer func() {
+		if err != nil {
+			rollbackErr := tx.Rollback()
+			if rollbackErr != nil {
+				err = fmt.Errorf("error closing transfer \"%d\": %w, unable to rollback: %s", id, err, rollbackErr)
+			} else {
+				err = fmt.Errorf("error closing transfer \"%d\": %w", id, err)
+			}
+		}
+	}()
+
+	selectToUserStmt, err := tx.PrepareContext(ctx, `SELECT to_users.id, to_users.username
+FROM transfers
+LEFT JOIN users to_users ON transfers.to_user = users.id
+WHERE id = ?`)
+	if err != nil {
+		return fmt.Errorf("error preparing select for to user: %w", err)
+	}
+	defer selectToUserStmt.Close()
+
+	var toUserID int64
+	var toUser string
+	queryRow := selectToUserStmt.QueryRowContext(ctx, id)
+	err = queryRow.Scan(&toUserID, &toUser)
+	if err != nil {
+		return fmt.Errorf("error querying to user: %w", err)
+	}
+
+	selectCards, err := tx.PrepareContext(ctx, `SELECT cards.name, cards.oracle_id, cards.scryfall_id, cards.foil, cards.quantity, tc.quantity, owners.username, owners.id, from_users.username, from_users.id
+FROM transfers
+LEFT JOIN transferred_cards tc ON transfers.id = tc.transfer_id
+LEFT JOIN cards ON tc.scryfall_id = cards.scryfall_id AND tc.foil = cards.FOIL AND tc.owner = cards.owner AND transfers.from_user = cards.keeper
+LEFT JOIN users owners ON owners.id = cards.owner
+LEFT JOIN users from_users ON transfers.from_user = users.id
+WHERE transfer_id = ?
+`)
+	if err != nil {
+		return fmt.Errorf("error preparing select: %w", err)
+	}
+	defer selectCards.Close()
+
+	rows, err := selectCards.QueryContext(ctx, id)
+	if err != nil {
+		return fmt.Errorf("error selecting: %w", err)
+	}
+
+	type transferredCards struct {
+		name             string
+		oracleID         string
+		scryfallID       string
+		foil             bool
+		actualQuantity   uint
+		transferQuantity uint
+		owner            string
+		ownerID          int64
+		fromUser         string
+		fromUserID       int64
+	}
+
+	transferRows := make([]*transferredCards, 0)
+	for rows.Next() {
+		var tc transferredCards
+		err = rows.Scan(&tc.name, &tc.oracleID, &tc.scryfallID, &tc.foil, &tc.actualQuantity, &tc.transferQuantity, &tc.owner, &tc.ownerID, &tc.fromUser, &tc.fromUserID)
+		if err != nil {
+			return fmt.Errorf("error scanning on select on transferred_cards: %w", err)
+		}
+		if tc.actualQuantity < tc.transferQuantity {
+			return &inventory.RowError{
+				Err: inventory.ErrTooFewCards,
+				Row: &inventory.TransferredCards{
+					Quantity: tc.transferQuantity,
+					Card: &inventory.Card{
+						ScryfallID: tc.scryfallID,
+						Foil:       tc.foil,
+					},
+					Owner: tc.owner,
+				},
+			}
+		}
+		transferRows = append(transferRows, &tc)
+	}
+	err = rows.Err()
+	if err != nil {
+		return fmt.Errorf("error scanning on select on transferred_cards: %w", err)
+	}
+
+	removeStmt, err := tx.PrepareContext(ctx, `UPDATE cards
+SET quantity = quantity - ?
+WHERE scryfall_id = ? AND foil = ? AND owner = ? AND keeper = ?`)
+	if err != nil {
+		return fmt.Errorf("error preparing update statement on cards: %w", err)
+	}
+	defer removeStmt.Close()
+
+	deleteStmt, err := tx.PrepareContext(ctx, `DELETE FROM cards
+WHERE scryfall_id = ? AND foil = ? AND owner = ? AND keeper = ?`)
+	if err != nil {
+		return fmt.Errorf("error preparing delete statement on cards: %w", err)
+	}
+	defer deleteStmt.Close()
+
+	upsertStmt, err := tx.PrepareContext(ctx, `INSERT INTO cards (quantity, name, oracle_id, scryfall_id, foil, owner, keeper)
+VALUES (?, ?, ?, ?, ?, ?, ?)
+ON DUPLICATE KEY UPDATE quantity = quantity + ?`)
+	if err != nil {
+		return fmt.Errorf("error preparing upsert statement on cards: %w", err)
+	}
+	defer upsertStmt.Close()
+
+	for _, row := range transferRows {
+		if row.actualQuantity == row.transferQuantity {
+			_, err = deleteStmt.ExecContext(ctx, row.scryfallID, row.foil, row.ownerID, row.fromUserID)
+			if err != nil {
+				return fmt.Errorf("error deleting from cards: %w", err)
+			}
+		} else {
+			_, err = removeStmt.ExecContext(ctx, row.transferQuantity, row.scryfallID, row.foil, row.ownerID, row.fromUserID)
+			if err != nil {
+				return fmt.Errorf("error removing quantity from cards: %w", err)
+			}
+		}
+		_, err = upsertStmt.ExecContext(ctx, row.transferQuantity, row.name, row.oracleID, row.scryfallID, row.foil, row.ownerID, toUserID, row.transferQuantity)
+		if err != nil {
+			return fmt.Errorf("error upserting into cards: %w", err)
+		}
+	}
+
+	closeStmt, err := tx.PrepareContext(ctx, `UPDATE transfers
 SET closed = NOW()
 WHERE id = ?
 `)
@@ -490,6 +646,11 @@ WHERE id = ?
 
 	if rowsAffected <= 0 {
 		return inventory.ErrTransferNoExist
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("error committing: %w", err)
 	}
 
 	return nil

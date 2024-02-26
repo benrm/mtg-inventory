@@ -201,4 +201,9 @@ func TestSQL(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get transfer by ID: %s", err.Error())
 	}
+
+	err = b.CancelTransfer(context.Background(), transfer.ID)
+	if err != nil {
+		t.Fatalf("Failed to close transfer: %s", err.Error())
+	}
 }
