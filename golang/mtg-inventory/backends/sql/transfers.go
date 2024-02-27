@@ -473,6 +473,7 @@ func (b *Backend) CancelTransfer(ctx context.Context, id int64) (err error) {
 	if err != nil {
 		return fmt.Errorf("error preparing transfer delete: %w", err)
 	}
+	defer deleteStmt.Close()
 
 	result, err := deleteStmt.ExecContext(ctx, id)
 	if err != nil {

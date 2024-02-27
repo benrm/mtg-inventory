@@ -275,6 +275,7 @@ WHERE scryfall_id = ? AND foil = ? AND owners.username = ? AND keepers.username 
 		if err != nil {
 			return fmt.Errorf("failed to prepare delete: %w", err)
 		}
+		defer deleteStmt.Close()
 
 		_, err = deleteStmt.ExecContext(ctx, scryfallID, foil, owner, keeper)
 		if err != nil {
@@ -292,6 +293,7 @@ WHERE scryfall_id = ? AND foil = ? AND owners.username = ? AND keepers.username 
 	if err != nil {
 		return fmt.Errorf("failed to prepare update: %w", err)
 	}
+	defer upsertStmt.Close()
 
 	_, err = upsertStmt.ExecContext(ctx, quantity, scryfallID, foil, owner, keeper)
 	if err != nil {

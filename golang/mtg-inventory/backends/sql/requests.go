@@ -197,6 +197,7 @@ WHERE users.username = ?
 	if err != nil {
 		return nil, fmt.Errorf("error preparing request: %w", err)
 	}
+	defer insertRequestStmt.Close()
 
 	now := time.Now()
 
@@ -217,6 +218,7 @@ ON DUPLICATE KEY UPDATE quantity = quantity + ?
 	if err != nil {
 		return nil, fmt.Errorf("error preparing request cards: %w", err)
 	}
+	defer upsertRequestedCardsStmt.Close()
 
 	for _, cards := range rows {
 		_, err := upsertRequestedCardsStmt.ExecContext(ctx, requestID, cards.Name, cards.OracleID, cards.Quantity, cards.Quantity)
