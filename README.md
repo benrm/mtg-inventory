@@ -2,9 +2,9 @@
 
 ## Purpose
 
-The goal of this project is to provide a RESTful API for tracking Magic cards
-as they are lent out and returned with the eventual intent of integrating with
-apps like Slack and Discord.
+The goal of this project is to provide a tool for tracking Magic cards as they
+are lent out and returned with the eventual intent of integrating with apps
+like Slack and Discord.
 
 ## Contributing
 
