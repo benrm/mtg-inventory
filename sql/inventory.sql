@@ -5,7 +5,6 @@ USE mtg_inventory;
 CREATE TABLE IF NOT EXISTS users (
 	id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
 	username VARCHAR(256) NOT NULL,
-	email VARCHAR(256),
 	UNIQUE (username)
 );
 

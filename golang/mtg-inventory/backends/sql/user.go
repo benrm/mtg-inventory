@@ -2,8 +2,6 @@ package sql
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 	"fmt"
 
 	inventory "github.com/benrm/mtg-inventory/golang/mtg-inventory"
@@ -17,29 +15,28 @@ func (b *Backend) GetUserByUsername(ctx context.Context, username string) (_ *in
 		}
 	}()
 
-	queryStmt, err := b.DB.PrepareContext(ctx, "SELECT email FROM users WHERE username = ?")
+	queryStmt, err := b.DB.PrepareContext(ctx, "SELECT COUNT(*) FROM users WHERE username = ?")
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare select on users: %w", err)
 	}
 	defer queryStmt.Close()
 
-	var email string
+	var count int
 	row := queryStmt.QueryRow(username)
-	err = row.Scan(&email)
+	err = row.Scan(&count)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, inventory.ErrUserNoExist
-		}
 		return nil, fmt.Errorf("failed to scan row from select on users: %w", err)
+	}
+	if count == 0 {
+		return nil, inventory.ErrUserNoExist
 	}
 	return &inventory.User{
 		Username: username,
-		Email:    email,
 	}, nil
 }
 
 // AddUser adds a User given its username and email
-func (b *Backend) AddUser(ctx context.Context, username, email string) (*inventory.User, error) {
+func (b *Backend) AddUser(ctx context.Context, username string) (*inventory.User, error) {
 	tx, err := b.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error adding user: %w", err)
@@ -55,13 +52,13 @@ func (b *Backend) AddUser(ctx context.Context, username, email string) (*invento
 		}
 	}()
 
-	insertStmt, err := tx.PrepareContext(ctx, "INSERT INTO users (username, email) VALUES (?, ?)")
+	insertStmt, err := tx.PrepareContext(ctx, "INSERT INTO users (username) VALUES (?)")
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare insert on users: %w", err)
 	}
 	defer insertStmt.Close()
 
-	_, err = insertStmt.ExecContext(ctx, username, email)
+	_, err = insertStmt.ExecContext(ctx, username)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert on users: %w", err)
 	}
@@ -73,6 +70,5 @@ func (b *Backend) AddUser(ctx context.Context, username, email string) (*invento
 
 	return &inventory.User{
 		Username: username,
-		Email:    email,
 	}, nil
 }

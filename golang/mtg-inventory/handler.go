@@ -96,7 +96,6 @@ func (s *Handler) PostUser(rw http.ResponseWriter, req *http.Request) {
 
 	input := struct {
 		Username string `json:"username"`
-		Email    string `json:"email"`
 	}{}
 	err = json.Unmarshal(b, &input)
 	if err != nil {
@@ -108,7 +107,7 @@ func (s *Handler) PostUser(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	user, err := s.Backend.AddUser(req.Context(), input.Username, input.Email)
+	user, err := s.Backend.AddUser(req.Context(), input.Username)
 	if err != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
 		err = writeJSON(rw, HTTPError{Error: err.Error()})

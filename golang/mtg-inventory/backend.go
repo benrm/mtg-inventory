@@ -26,5 +26,5 @@ type Backend interface {
 	CloseTransfer(ctx context.Context, id int64) error
 
 	GetUserByUsername(ctx context.Context, username string) (*User, error)
-	AddUser(ctx context.Context, username, email string) (*User, error)
+	AddUser(ctx context.Context, username string) (*User, error)
 }

@@ -5,7 +5,6 @@ import "time"
 // User represents a user in the users table
 type User struct {
 	Username string `json:"username"`
-	Email    string `json:"email"`
 }
 
 // Card represents a Card
