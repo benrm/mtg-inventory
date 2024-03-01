@@ -16,7 +16,7 @@ func TestJSONCache(t *testing.T) {
 		}
 	}
 
-	cache, err := NewCacheFromJSON(scryfallBulkData)
+	cache, err := NewJSONCache(scryfallBulkData)
 	if err != nil {
 		t.Fatalf("Error loading JSON cache: %s", err.Error())
 	}

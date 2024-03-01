@@ -4,11 +4,20 @@ Executable server runs an instance of the slack.Server.
 package main
 
 import (
+	"database/sql"
+	"flag"
 	"fmt"
 	"os"
 	"strings"
 
+	backend "github.com/benrm/mtg-inventory/golang/mtg-inventory/backends/sql"
+	"github.com/benrm/mtg-inventory/golang/mtg-inventory/scryfall"
 	"github.com/benrm/mtg-inventory/golang/mtg-inventory/slack"
+	_ "github.com/go-sql-driver/mysql"
+)
+
+var (
+	bulkDataFile = flag.String("bulk_data", "./all-cards.json", "The bulk data file containing all Scryfall data")
 )
 
 func main() {
@@ -35,9 +44,29 @@ func main() {
 		os.Exit(1)
 	}
 
-	server := slack.NewServer(nil, nil, appToken, botToken)
+	db, err := sql.Open("mysql", os.Getenv("MYSQL_DSN"))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error opening database: %s\n", err.Error())
+		os.Exit(1)
+	}
 
-	err := server.Serve()
+	flag.Parse()
+
+	bulkData, err := os.Open(*bulkDataFile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error opening bulk data file: %s\n", err.Error())
+		os.Exit(1)
+	}
+
+	jsonCache, err := scryfall.NewJSONCache(bulkData)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error reading bulk data file: %s\n", err.Error())
+		os.Exit(1)
+	}
+
+	server := slack.NewServer(backend.NewBackend(db), jsonCache, appToken, botToken)
+
+	err = server.Serve()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error with server: %s\n", err.Error())
 		os.Exit(1)
