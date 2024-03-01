@@ -10,59 +10,11 @@ import (
 	"fmt"
 	"io"
 	"strings"
-	"time"
+
+	inventory "github.com/benrm/mtg-inventory/golang/mtg-inventory"
 )
 
-// Date represents a date as represented in Scryfall
-type Date struct {
-	Value string
-	Time  time.Time
-}
-
-// UnmarshalJSON implements json.Unmarshaler
-func (sd *Date) UnmarshalJSON(b []byte) error {
-	var str string
-	err := json.Unmarshal(b, &str)
-	if err != nil {
-		return fmt.Errorf("error unmarshaling date %q into string: %w", b, err)
-	}
-	t, err := time.Parse(time.DateOnly, str)
-	if err != nil {
-		return fmt.Errorf("error parsing string %q as date: %w", str, err)
-	}
-	*sd = Date{
-		Value: str,
-		Time:  t,
-	}
-	return nil
-}
-
-// CardFace represents one of the faces of a Card
-type CardFace struct {
-	Name     string `json:"name"`
-	OracleID string `json:"oracle_id"`
-}
-
-// Card represents a card object retrieved from Scryfall
-type Card struct {
-	// Core Card Fields
-	ID       string `json:"id"`
-	Language string `json:"lang"`
-	OracleID string `json:"oracle_id"`
-
-	// Gameplay fields
-	Name string `json:"name"`
-
-	// Print fields
-	CollectorNumber string `json:"collector_number"`
-	ReleasedAt      Date   `json:"released_at"`
-	Set             string `json:"set"`
-
-	// Card Face Objects
-	CardFaces []CardFace `json:"card_faces"`
-}
-
-func isPreferredCard(a, b *Card) bool {
+func isPreferredCard(a, b *inventory.ScryfallCard) bool {
 	// Prefer English
 	if a.Language != b.Language && (b.Language == "en" || a.Language != "en") {
 		return a.Language == "en"
@@ -83,7 +35,7 @@ func isPreferredCard(a, b *Card) bool {
 	return true
 }
 
-func getPreferredCard(a, b *Card) *Card {
+func getPreferredCard(a, b *inventory.ScryfallCard) *inventory.ScryfallCard {
 	if isPreferredCard(a, b) {
 		return a
 	}
@@ -100,16 +52,10 @@ var (
 
 // Cache represents a cache of Scryfall bulk data that can be used to look up
 // cards
-type Cache interface {
-	GetCard(name, set, language, collectorNumber string) (*Card, error)
-	GetCardByName(string) (*Card, error)
-	GetCardByOracleID(string) (*Card, error)
-	GetCardByScryfallID(string) (*Card, error)
-}
 
 type cardsWithDefault struct {
-	Default            *Card
-	CollectorNumberMap map[string][]*Card
+	Default            *inventory.ScryfallCard
+	CollectorNumberMap map[string][]*inventory.ScryfallCard
 }
 
 type cardKey struct {
@@ -120,13 +66,13 @@ type cardKey struct {
 
 type jsonCache struct {
 	KeyMap          map[cardKey]*cardsWithDefault
-	OracleIDMap     map[string]*Card
-	ScryfallIDMap   map[string]*Card
-	NameToOracleMap map[string]map[string]*Card
+	OracleIDMap     map[string]*inventory.ScryfallCard
+	ScryfallIDMap   map[string]*inventory.ScryfallCard
+	NameToOracleMap map[string]map[string]*inventory.ScryfallCard
 }
 
 // NewCacheFromJSON creates a Cache from Scryfall bulk JSON data
-func NewCacheFromJSON(reader io.Reader) (Cache, error) {
+func NewCacheFromJSON(reader io.Reader) (inventory.Scryfall, error) {
 	decoder := json.NewDecoder(reader)
 	_, err := decoder.Token()
 	if err != nil {
@@ -135,13 +81,13 @@ func NewCacheFromJSON(reader io.Reader) (Cache, error) {
 
 	cache := &jsonCache{
 		KeyMap:          make(map[cardKey]*cardsWithDefault),
-		OracleIDMap:     make(map[string]*Card),
-		ScryfallIDMap:   make(map[string]*Card),
-		NameToOracleMap: make(map[string]map[string]*Card),
+		OracleIDMap:     make(map[string]*inventory.ScryfallCard),
+		ScryfallIDMap:   make(map[string]*inventory.ScryfallCard),
+		NameToOracleMap: make(map[string]map[string]*inventory.ScryfallCard),
 	}
 
 	for decoder.More() {
-		var card Card
+		var card inventory.ScryfallCard
 		err = decoder.Decode(&card)
 		if err != nil {
 			return nil, fmt.Errorf("error reading after %d bytes: %w", decoder.InputOffset(), err)
@@ -155,13 +101,13 @@ func NewCacheFromJSON(reader io.Reader) (Cache, error) {
 		if _, exists := cache.KeyMap[key]; !exists {
 			cache.KeyMap[key] = &cardsWithDefault{
 				Default:            &card,
-				CollectorNumberMap: make(map[string][]*Card),
+				CollectorNumberMap: make(map[string][]*inventory.ScryfallCard),
 			}
 		} else {
 			cache.KeyMap[key].Default = getPreferredCard(cache.KeyMap[key].Default, &card)
 		}
 		if _, exists := cache.KeyMap[key].CollectorNumberMap[card.CollectorNumber]; !exists {
-			cache.KeyMap[key].CollectorNumberMap[card.CollectorNumber] = make([]*Card, 0)
+			cache.KeyMap[key].CollectorNumberMap[card.CollectorNumber] = make([]*inventory.ScryfallCard, 0)
 		}
 		cache.KeyMap[key].CollectorNumberMap[card.CollectorNumber] = append(cache.KeyMap[key].CollectorNumberMap[card.CollectorNumber], &card)
 
@@ -184,7 +130,7 @@ func NewCacheFromJSON(reader io.Reader) (Cache, error) {
 		cache.ScryfallIDMap[card.ID] = &card
 
 		if _, exists := cache.NameToOracleMap[card.Name]; !exists {
-			cache.NameToOracleMap[card.Name] = make(map[string]*Card)
+			cache.NameToOracleMap[card.Name] = make(map[string]*inventory.ScryfallCard)
 		}
 		if current, exists := cache.NameToOracleMap[card.Name][card.OracleID]; !exists {
 			cache.NameToOracleMap[card.Name][card.OracleID] = &card
@@ -196,7 +142,7 @@ func NewCacheFromJSON(reader io.Reader) (Cache, error) {
 	return cache, nil
 }
 
-func (jc *jsonCache) GetCard(name, set, language, collectorNumber string) (*Card, error) {
+func (jc *jsonCache) GetCard(name, set, language, collectorNumber string) (*inventory.ScryfallCard, error) {
 	key := cardKey{
 		Name:     name,
 		Set:      set,
@@ -213,7 +159,7 @@ func (jc *jsonCache) GetCard(name, set, language, collectorNumber string) (*Card
 	return nil, fmt.Errorf("didn't find %q|%q|%q|%q: %w", name, set, language, collectorNumber, ErrNotInCache)
 }
 
-func (jc *jsonCache) GetCardByName(name string) (*Card, error) {
+func (jc *jsonCache) GetCardByName(name string) (*inventory.ScryfallCard, error) {
 	if oracleMap, exists := jc.NameToOracleMap[name]; exists {
 		if len(oracleMap) == 1 {
 			for _, card := range oracleMap {
@@ -226,14 +172,14 @@ func (jc *jsonCache) GetCardByName(name string) (*Card, error) {
 	return nil, fmt.Errorf("didn't find name %q: %w", name, ErrNotInCache)
 }
 
-func (jc *jsonCache) GetCardByOracleID(oracleID string) (*Card, error) {
+func (jc *jsonCache) GetCardByOracleID(oracleID string) (*inventory.ScryfallCard, error) {
 	if card, exists := jc.OracleIDMap[oracleID]; exists {
 		return card, nil
 	}
 	return nil, fmt.Errorf("didn't find oracle ID %q: %w", oracleID, ErrNotInCache)
 }
 
-func (jc *jsonCache) GetCardByScryfallID(scryfallID string) (*Card, error) {
+func (jc *jsonCache) GetCardByID(scryfallID string) (*inventory.ScryfallCard, error) {
 	if card, exists := jc.ScryfallIDMap[scryfallID]; exists {
 		return card, nil
 	}

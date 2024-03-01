@@ -48,7 +48,7 @@ func TestJSONCache(t *testing.T) {
 		t.Fatalf("Error retrieving 'Primeval Titan' from JSON cache with oracle ID: %s", err.Error())
 	}
 
-	_, err = cache.GetCardByScryfallID("eea2bf31-4320-4605-ab5b-6b32472b82fa")
+	_, err = cache.GetCardByID("eea2bf31-4320-4605-ab5b-6b32472b82fa")
 	if err != nil {
 		t.Fatalf("Error retrieving 'Primeval Titan' from JSON cache with Scryfall ID: %s", err.Error())
 	}
