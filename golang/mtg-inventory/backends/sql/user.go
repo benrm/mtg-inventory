@@ -7,8 +7,8 @@ import (
 	inventory "github.com/benrm/mtg-inventory/golang/mtg-inventory"
 )
 
-// AddUser adds a User given its username and email
-func (b *Backend) AddUser(ctx context.Context, slackID string) (*inventory.User, error) {
+// AddUserIfNotExist adds a User given its username and email
+func (b *Backend) AddUserIfNotExist(ctx context.Context, slackID string) (*inventory.User, error) {
 	tx, err := b.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error adding user: %w", err)
@@ -23,6 +23,23 @@ func (b *Backend) AddUser(ctx context.Context, slackID string) (*inventory.User,
 			}
 		}
 	}()
+
+	selectStmt, err := tx.PrepareContext(ctx, "SELECT COUNT(*) FROM users WHERE slack_id = ?")
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare select on users: %w", err)
+	}
+
+	row := selectStmt.QueryRowContext(ctx, slackID)
+	var count int
+	err = row.Scan(&count)
+	if err != nil {
+		return nil, fmt.Errorf("failed to select on users: %w", err)
+	}
+	if count > 0 {
+		return &inventory.User{
+			SlackID: slackID,
+		}, nil
+	}
 
 	insertStmt, err := tx.PrepareContext(ctx, "INSERT INTO users (slack_id) VALUES (?)")
 	if err != nil {

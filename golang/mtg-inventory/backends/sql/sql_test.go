@@ -60,7 +60,7 @@ func TestSQL(t *testing.T) {
 
 	b := NewBackend(db)
 
-	user1, err := b.AddUser(context.Background(), "user1")
+	user1, err := b.AddUserIfNotExist(context.Background(), "user1")
 	if err != nil {
 		t.Fatalf("Failed to add user: %s", err.Error())
 	}
@@ -133,7 +133,7 @@ func TestSQL(t *testing.T) {
 		t.Fatalf("Failed to get cards by keeper: %s", err.Error())
 	}
 
-	user2, err := b.AddUser(context.Background(), "user2")
+	user2, err := b.AddUserIfNotExist(context.Background(), "user2")
 	if err != nil {
 		t.Fatalf("Failed to add user: %s", err.Error())
 	}

@@ -25,5 +25,5 @@ type Backend interface {
 	OpenTransfer(ctx context.Context, toUser, fromUser string, request *int64, rows []*TransferredCards) (*Transfer, error)
 	CloseTransfer(ctx context.Context, id int64) error
 
-	AddUser(ctx context.Context, slackID string) (*User, error)
+	AddUserIfNotExist(ctx context.Context, slackID string) (*User, error)
 }
