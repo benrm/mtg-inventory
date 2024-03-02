@@ -4,7 +4,7 @@ import "time"
 
 // User represents a user in the users table
 type User struct {
-	Username string `json:"username"`
+	SlackID string `json:"slack_id"`
 }
 
 // Card represents a Card
