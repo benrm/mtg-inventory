@@ -65,6 +65,11 @@ func TestSQL(t *testing.T) {
 		t.Fatalf("Failed to add user: %s", err.Error())
 	}
 
+	_, err = b.GetUserByUsername(context.Background(), user1.Username)
+	if err != nil {
+		t.Fatalf("Failed to get user by username: %s", err.Error())
+	}
+
 	fakeCard1 := &inventory.Card{
 		Name:       "fake-card-name-1",
 		OracleID:   "fake-oracle-ID-1",
@@ -75,8 +80,8 @@ func TestSQL(t *testing.T) {
 	fakeCardRow1 := &inventory.CardRow{
 		Quantity: 1,
 		Card:     fakeCard1,
-		Owner:    user1.SlackID,
-		Keeper:   user1.SlackID,
+		Owner:    user1.Username,
+		Keeper:   user1.Username,
 	}
 
 	fakeCard2 := &inventory.Card{
@@ -89,8 +94,8 @@ func TestSQL(t *testing.T) {
 	fakeCardRow2 := &inventory.CardRow{
 		Quantity: 1,
 		Card:     fakeCard2,
-		Owner:    user1.SlackID,
-		Keeper:   user1.SlackID,
+		Owner:    user1.Username,
+		Keeper:   user1.Username,
 	}
 
 	err = b.AddCards(context.Background(), []*inventory.CardRow{
@@ -108,12 +113,12 @@ func TestSQL(t *testing.T) {
 		t.Fatalf("Failed to update cards: %s", err.Error())
 	}
 
-	err = b.ModifyCardQuantity(context.Background(), user1.SlackID, user1.SlackID, fakeCard1.ScryfallID, false, 7)
+	err = b.ModifyCardQuantity(context.Background(), user1.Username, user1.Username, fakeCard1.ScryfallID, false, 7)
 	if err != nil {
 		t.Fatalf("Failed to update card quantity: %s", err.Error())
 	}
 
-	err = b.ModifyCardQuantity(context.Background(), user1.SlackID, user1.SlackID, fakeCard2.ScryfallID, false, 0)
+	err = b.ModifyCardQuantity(context.Background(), user1.Username, user1.Username, fakeCard2.ScryfallID, false, 0)
 	if err != nil {
 		t.Fatalf("Failed to update card quantity: %s", err.Error())
 	}
@@ -123,12 +128,12 @@ func TestSQL(t *testing.T) {
 		t.Fatalf("Failed to get cards by oracle ID: %s", err.Error())
 	}
 
-	_, err = b.GetCardsByOwner(context.Background(), user1.SlackID, inventory.DefaultListLimit, 0)
+	_, err = b.GetCardsByOwner(context.Background(), user1.Username, inventory.DefaultListLimit, 0)
 	if err != nil {
 		t.Fatalf("Failed to get cards by owner: %s", err.Error())
 	}
 
-	_, err = b.GetCardsByKeeper(context.Background(), user1.SlackID, inventory.DefaultListLimit, 0)
+	_, err = b.GetCardsByKeeper(context.Background(), user1.Username, inventory.DefaultListLimit, 0)
 	if err != nil {
 		t.Fatalf("Failed to get cards by keeper: %s", err.Error())
 	}
@@ -138,7 +143,7 @@ func TestSQL(t *testing.T) {
 		t.Fatalf("Failed to add user: %s", err.Error())
 	}
 
-	request, err := b.OpenRequest(context.Background(), user1.SlackID, []*inventory.RequestedCards{
+	request, err := b.OpenRequest(context.Background(), user1.Username, []*inventory.RequestedCards{
 		{
 			Name:     "fake-card-name-2",
 			OracleID: "fake-oracle-ID-2",
@@ -149,7 +154,7 @@ func TestSQL(t *testing.T) {
 		t.Fatalf("Failed to request cards: %s", err.Error())
 	}
 
-	_, err = b.GetRequestsByRequestor(context.Background(), user1.SlackID, inventory.DefaultListLimit, 0)
+	_, err = b.GetRequestsByRequestor(context.Background(), user1.Username, inventory.DefaultListLimit, 0)
 	if err != nil {
 		t.Fatalf("Failed to get requests: %s", err.Error())
 	}
@@ -167,22 +172,22 @@ func TestSQL(t *testing.T) {
 	fakeTransferRow := &inventory.TransferredCards{
 		Quantity: 1,
 		Card:     fakeCard1,
-		Owner:    user1.SlackID,
+		Owner:    user1.Username,
 	}
 
-	transfer, err := b.OpenTransfer(context.Background(), user2.SlackID, user1.SlackID, &request.ID, []*inventory.TransferredCards{
+	transfer, err := b.OpenTransfer(context.Background(), user2.Username, user1.Username, &request.ID, []*inventory.TransferredCards{
 		fakeTransferRow,
 	})
 	if err != nil {
 		t.Fatalf("Failed to transfer cards: %s", err.Error())
 	}
 
-	_, err = b.GetTransfersByToUser(context.Background(), user2.SlackID, inventory.DefaultListLimit, 0)
+	_, err = b.GetTransfersByToUser(context.Background(), user2.Username, inventory.DefaultListLimit, 0)
 	if err != nil {
 		t.Fatalf("Failed to get transfer by to user: %s", err.Error())
 	}
 
-	_, err = b.GetTransfersByFromUser(context.Background(), user1.SlackID, inventory.DefaultListLimit, 0)
+	_, err = b.GetTransfersByFromUser(context.Background(), user1.Username, inventory.DefaultListLimit, 0)
 	if err != nil {
 		t.Fatalf("Failed to get transfer by from user: %s", err.Error())
 	}

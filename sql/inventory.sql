@@ -4,8 +4,8 @@ USE mtg_inventory;
 
 CREATE TABLE IF NOT EXISTS users (
 	id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
-	slack_id VARCHAR(256) NOT NULL,
-	UNIQUE (slack_id)
+	username VARCHAR(256) NOT NULL,
+	UNIQUE (username)
 );
 
 CREATE TABLE IF NOT EXISTS cards (

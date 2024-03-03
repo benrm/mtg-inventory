@@ -21,7 +21,7 @@ func (b *Backend) GetCardsByOracleID(ctx context.Context, oracleID string, limit
 		limit = inventory.MaxListLimit
 	}
 
-	queryStmt, err := b.DB.PrepareContext(ctx, `SELECT cards.quantity, cards.name, cards.scryfall_id, cards.foil, owners.slack_id, keepers.slack_id
+	queryStmt, err := b.DB.PrepareContext(ctx, `SELECT cards.quantity, cards.name, cards.scryfall_id, cards.foil, owners.username, keepers.username
 FROM cards
 LEFT JOIN users owners ON cards.owner = owners.id
 LEFT JOIN users keepers ON cards.keeper = keepers.id
@@ -83,11 +83,11 @@ func (b *Backend) GetCardsByOwner(ctx context.Context, ownerUsername string, lim
 		limit = inventory.MaxListLimit
 	}
 
-	queryStmt, err := b.DB.PrepareContext(ctx, `SELECT cards.quantity, cards.name, cards.oracle_id, cards.scryfall_id, cards.foil, keepers.slack_id
+	queryStmt, err := b.DB.PrepareContext(ctx, `SELECT cards.quantity, cards.name, cards.oracle_id, cards.scryfall_id, cards.foil, keepers.username
 	FROM cards
 	LEFT JOIN users owners ON cards.owner = owners.id
 	LEFT JOIN users keepers ON cards.keeper = keepers.id
-	WHERE owners.slack_id = ?
+	WHERE owners.username = ?
 	ORDER BY cards.name
 	LIMIT ? OFFSET ?
 `)
@@ -145,11 +145,11 @@ func (b *Backend) GetCardsByKeeper(ctx context.Context, keeperUsername string, l
 		limit = inventory.MaxListLimit
 	}
 
-	queryStmt, err := b.DB.PrepareContext(ctx, `SELECT cards.quantity, cards.name, cards.oracle_id, cards.scryfall_id, cards.foil, owners.slack_id
+	queryStmt, err := b.DB.PrepareContext(ctx, `SELECT cards.quantity, cards.name, cards.oracle_id, cards.scryfall_id, cards.foil, owners.username
 	FROM cards
 	LEFT JOIN users owners ON cards.owner = owners.id
 	LEFT JOIN users keepers ON cards.keeper = keepers.id
-	WHERE keepers.slack_id = ?
+	WHERE keepers.username = ?
 	ORDER BY cards.name
 	LIMIT ? OFFSET ?
 `)
@@ -225,7 +225,7 @@ func (b *Backend) AddCards(ctx context.Context, rows []*inventory.CardRow) (err 
 	upsertStmt, err := tx.PrepareContext(ctx, `INSERT INTO cards (quantity, name, oracle_id, scryfall_id, foil, owner, keeper)
 SELECT ?, ?, ?, ?, ?, owners.id, keepers.id
 FROM users owners, users keepers
-WHERE owners.slack_id = ? AND keepers.slack_id = ?
+WHERE owners.username = ? AND keepers.username = ?
 ON DUPLICATE KEY UPDATE quantity = quantity + ?
 `)
 	if err != nil {
@@ -270,7 +270,7 @@ func (b *Backend) ModifyCardQuantity(ctx context.Context, owner, keeper, scryfal
 FROM cards
 LEFT JOIN users owners ON owners.id = cards.owner
 LEFT JOIN users keepers ON keepers.id = cards.keeper
-WHERE scryfall_id = ? AND foil = ? AND owners.slack_id = ? AND keepers.slack_id = ?
+WHERE scryfall_id = ? AND foil = ? AND owners.username = ? AND keepers.username = ?
 `)
 		if err != nil {
 			return fmt.Errorf("failed to prepare delete: %w", err)
@@ -289,7 +289,7 @@ WHERE scryfall_id = ? AND foil = ? AND owners.slack_id = ? AND keepers.slack_id 
 LEFT JOIN users owners ON owners.id = cards.owner
 LEFT JOIN users keepers ON keepers.id = cards.keeper
 SET cards.quantity = ?
-WHERE scryfall_id = ? AND foil = ? AND owners.slack_id = ? AND keepers.slack_id = ?`)
+WHERE scryfall_id = ? AND foil = ? AND owners.username = ? AND keepers.username = ?`)
 	if err != nil {
 		return fmt.Errorf("failed to prepare update: %w", err)
 	}

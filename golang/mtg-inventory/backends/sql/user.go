@@ -7,8 +7,36 @@ import (
 	inventory "github.com/benrm/mtg-inventory/golang/mtg-inventory"
 )
 
-// AddUserIfNotExist adds a User given its username and email
-func (b *Backend) AddUserIfNotExist(ctx context.Context, slackID string) (*inventory.User, error) {
+// GetUserByUsername gets a User by its username
+func (b *Backend) GetUserByUsername(ctx context.Context, username string) (_ *inventory.User, err error) {
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("error getting user by username %s: %w", username, err)
+		}
+	}()
+
+	queryStmt, err := b.DB.PrepareContext(ctx, "SELECT COUNT(*) FROM users WHERE username = ?")
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare select on users: %w", err)
+	}
+	defer queryStmt.Close()
+
+	var count int
+	row := queryStmt.QueryRow(username)
+	err = row.Scan(&count)
+	if err != nil {
+		return nil, fmt.Errorf("failed to scan row from select on users: %w", err)
+	}
+	if count == 0 {
+		return nil, inventory.ErrUserNoExist
+	}
+	return &inventory.User{
+		Username: username,
+	}, nil
+}
+
+// AddUserIfNotExist adds a User given its username
+func (b *Backend) AddUserIfNotExist(ctx context.Context, username string) (*inventory.User, error) {
 	tx, err := b.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error adding user: %w", err)
@@ -24,12 +52,12 @@ func (b *Backend) AddUserIfNotExist(ctx context.Context, slackID string) (*inven
 		}
 	}()
 
-	selectStmt, err := tx.PrepareContext(ctx, "SELECT COUNT(*) FROM users WHERE slack_id = ?")
+	selectStmt, err := tx.PrepareContext(ctx, "SELECT COUNT(*) FROM users WHERE username = ?")
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare select on users: %w", err)
 	}
 
-	row := selectStmt.QueryRowContext(ctx, slackID)
+	row := selectStmt.QueryRowContext(ctx, username)
 	var count int
 	err = row.Scan(&count)
 	if err != nil {
@@ -37,17 +65,17 @@ func (b *Backend) AddUserIfNotExist(ctx context.Context, slackID string) (*inven
 	}
 	if count > 0 {
 		return &inventory.User{
-			SlackID: slackID,
+			Username: username,
 		}, nil
 	}
 
-	insertStmt, err := tx.PrepareContext(ctx, "INSERT INTO users (slack_id) VALUES (?)")
+	insertStmt, err := tx.PrepareContext(ctx, "INSERT INTO users (username) VALUES (?)")
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare insert on users: %w", err)
 	}
 	defer insertStmt.Close()
 
-	_, err = insertStmt.ExecContext(ctx, slackID)
+	_, err = insertStmt.ExecContext(ctx, username)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert on users: %w", err)
 	}
@@ -58,6 +86,6 @@ func (b *Backend) AddUserIfNotExist(ctx context.Context, slackID string) (*inven
 	}
 
 	return &inventory.User{
-		SlackID: slackID,
+		Username: username,
 	}, nil
 }

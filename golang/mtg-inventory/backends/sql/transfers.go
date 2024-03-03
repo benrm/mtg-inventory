@@ -24,12 +24,12 @@ func (b *Backend) GetTransfersByToUser(ctx context.Context, toUser string, limit
 		limit = inventory.MaxListLimit
 	}
 
-	selectStmt, err := b.DB.PrepareContext(ctx, `SELECT transfers.id, transfers.request_id, from_users.slack_id, transfers.opened, transfers.closed, SUM(tc.quantity)
+	selectStmt, err := b.DB.PrepareContext(ctx, `SELECT transfers.id, transfers.request_id, from_users.username, transfers.opened, transfers.closed, SUM(tc.quantity)
 FROM transfers
 LEFT JOIN users from_users ON transfers.from_user = from_users.id
 LEFT JOIN users to_users ON transfers.to_user = to_users.id
 LEFT JOIN transferred_cards tc ON tc.transfer_id = transfers.id
-WHERE to_users.slack_id = ?
+WHERE to_users.username = ?
 GROUP BY transfers.id
 ORDER BY transfers.opened
 LIMIT ?
@@ -94,12 +94,12 @@ func (b *Backend) GetTransfersByFromUser(ctx context.Context, fromUser string, l
 		limit = inventory.MaxListLimit
 	}
 
-	selectStmt, err := b.DB.PrepareContext(ctx, `SELECT transfers.id, transfers.request_id, to_users.slack_id, transfers.opened, transfers.closed, SUM(tc.quantity)
+	selectStmt, err := b.DB.PrepareContext(ctx, `SELECT transfers.id, transfers.request_id, to_users.username, transfers.opened, transfers.closed, SUM(tc.quantity)
 FROM transfers
 LEFT JOIN users from_users ON transfers.from_user = from_users.id
 LEFT JOIN users to_users ON transfers.to_user = to_users.id
 LEFT JOIN transferred_cards tc ON tc.transfer_id = transfers.id
-WHERE from_users.slack_id = ?
+WHERE from_users.username = ?
 GROUP BY transfers.id
 ORDER BY transfers.opened
 LIMIT ?
@@ -164,7 +164,7 @@ func (b *Backend) GetTransfersByRequestID(ctx context.Context, requestID int64, 
 		limit = inventory.MaxListLimit
 	}
 
-	selectStmt, err := b.DB.PrepareContext(ctx, `SELECT transfers.id, to_users.slack_id, from_users.slack_id, transfers.opened, transfers.closed, SUM(tc.quantity)
+	selectStmt, err := b.DB.PrepareContext(ctx, `SELECT transfers.id, to_users.username, from_users.username, transfers.opened, transfers.closed, SUM(tc.quantity)
 FROM transfers
 LEFT JOIN users from_users ON transfers.from_user = from_users.id
 LEFT JOIN users to_users ON transfers.to_user = to_users.id
@@ -231,7 +231,7 @@ func (b *Backend) GetTransferByID(ctx context.Context, id int64, limit, offset u
 		limit = inventory.MaxListLimit
 	}
 
-	selectTransferStmt, err := b.DB.PrepareContext(ctx, `SELECT transfers.request_id, to_users.slack_id, from_users.slack_id, opened, closed
+	selectTransferStmt, err := b.DB.PrepareContext(ctx, `SELECT transfers.request_id, to_users.username, from_users.username, opened, closed
 FROM transfers
 LEFT JOIN users to_users ON to_users.id = transfers.to_user
 LEFT JOIN users from_users ON from_users.id = transfers.from_user
@@ -269,11 +269,11 @@ WHERE transfers.id = ?
 		transfer.Closed = &closed.Time
 	}
 
-	selectCardsStmt, err := b.DB.PrepareContext(ctx, `SELECT tc.quantity, tc.name, tc.scryfall_id, tc.foil, owners.slack_id
+	selectCardsStmt, err := b.DB.PrepareContext(ctx, `SELECT tc.quantity, tc.name, tc.scryfall_id, tc.foil, owners.username
 FROM transferred_cards AS tc
 LEFT JOIN users owners ON owners.id = tc.owner
 WHERE tc.transfer_id = ?
-ORDER BY name, owners.slack_id
+ORDER BY name, owners.username
 LIMIT ?
 OFFSET ?
 `)
@@ -352,7 +352,7 @@ func (b *Backend) OpenTransfer(ctx context.Context, toUser, fromUser string, req
 	insertTransferStmt, err := tx.PrepareContext(ctx, `INSERT INTO transfers (to_user, from_user, request_id, opened)
 SELECT to_users.id, from_users.id, ?, ?
 FROM users to_users, users from_users
-WHERE to_users.slack_id = ? AND from_users.slack_id = ?
+WHERE to_users.username = ? AND from_users.username = ?
 `)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare insert transfer: %w", err)
@@ -380,7 +380,7 @@ WHERE to_users.slack_id = ? AND from_users.slack_id = ?
 FROM cards
 LEFT JOIN users owners ON owners.id = cards.owner
 LEFT JOIN users keepers ON keepers.id = cards.keeper
-WHERE cards.scryfall_id = ? AND cards.foil = ? AND owners.slack_id = ? AND keepers.slack_id = ?
+WHERE cards.scryfall_id = ? AND cards.foil = ? AND owners.username = ? AND keepers.username = ?
 `)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare select for cards: %w", err)
@@ -391,7 +391,7 @@ WHERE cards.scryfall_id = ? AND cards.foil = ? AND owners.slack_id = ? AND keepe
 LEFT JOIN users owners ON owners.id = cards.owner
 LEFT JOIN users keepers ON keepers.id = cards.keeper
 SET quantity = quantity - ?
-WHERE cards.scryfall_id = ? AND cards.foil = ? AND owners.slack_id = ? AND keepers.slack_id = ?
+WHERE cards.scryfall_id = ? AND cards.foil = ? AND owners.username = ? AND keepers.username = ?
 `)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare update for cards: %w", err)
@@ -401,7 +401,7 @@ WHERE cards.scryfall_id = ? AND cards.foil = ? AND owners.slack_id = ? AND keepe
 	upsertCardStmt, err := tx.PrepareContext(ctx, `INSERT INTO cards (quantity, name, oracle_id, scryfall_id, foil, owner, keeper)
 SELECT ?, ?, ?, ?, ?, owners.id, keepers.id
 FROM users owners, users keepers
-WHERE owners.slack_id = ? AND keepers.slack_id = ?
+WHERE owners.username = ? AND keepers.username = ?
 ON DUPLICATE KEY UPDATE quantity = quantity + ?
 `)
 	if err != nil {
@@ -412,7 +412,7 @@ ON DUPLICATE KEY UPDATE quantity = quantity + ?
 	upsertTransferCardStmt, err := tx.PrepareContext(ctx, `INSERT INTO transferred_cards (transfer_id, quantity, name, scryfall_id, foil, owner)
 SELECT ?, ?, ?, ?, ?, users.id
 FROM users
-WHERE users.slack_id = ?
+WHERE users.username = ?
 ON DUPLICATE KEY UPDATE quantity = quantity + ?
 `)
 	if err != nil {
@@ -510,7 +510,7 @@ func (b *Backend) CloseTransfer(ctx context.Context, id int64) (err error) {
 		}
 	}()
 
-	selectToUserStmt, err := tx.PrepareContext(ctx, `SELECT to_users.id, to_users.slack_id
+	selectToUserStmt, err := tx.PrepareContext(ctx, `SELECT to_users.id, to_users.username
 FROM transfers
 LEFT JOIN users to_users ON transfers.to_user = users.id
 WHERE id = ?`)
@@ -527,7 +527,7 @@ WHERE id = ?`)
 		return fmt.Errorf("error querying to user: %w", err)
 	}
 
-	selectCards, err := tx.PrepareContext(ctx, `SELECT cards.name, cards.oracle_id, cards.scryfall_id, cards.foil, cards.quantity, tc.quantity, owners.slack_id, owners.id, from_users.slack_id, from_users.id
+	selectCards, err := tx.PrepareContext(ctx, `SELECT cards.name, cards.oracle_id, cards.scryfall_id, cards.foil, cards.quantity, tc.quantity, owners.username, owners.id, from_users.username, from_users.id
 FROM transfers
 LEFT JOIN transferred_cards tc ON transfers.id = tc.transfer_id
 LEFT JOIN cards ON tc.scryfall_id = cards.scryfall_id AND tc.foil = cards.FOIL AND tc.owner = cards.owner AND transfers.from_user = cards.keeper

@@ -29,7 +29,7 @@ func (b *Backend) GetRequestsByRequestor(ctx context.Context, requestorUsername 
 FROM requests
 LEFT JOIN requested_cards rc ON requests.id = rc.request_id
 LEFT JOIN users ON requests.requestor = users.id
-WHERE users.slack_id = ?
+WHERE users.username = ?
 GROUP BY requests.id
 ORDER BY requests.opened
 LIMIT ?
@@ -88,7 +88,7 @@ func (b *Backend) GetRequestByID(ctx context.Context, id int64, limit, offset ui
 		limit = inventory.MaxListLimit
 	}
 
-	selectRequestStmt, err := b.DB.PrepareContext(ctx, `SELECT users.slack_id, requests.opened, requests.closed
+	selectRequestStmt, err := b.DB.PrepareContext(ctx, `SELECT users.username, requests.opened, requests.closed
 FROM requests
 LEFT JOIN users ON requests.requestor = users.id
 WHERE requests.id = ?
@@ -192,7 +192,7 @@ func (b *Backend) OpenRequest(ctx context.Context, requestorUsername string, row
 	insertRequestStmt, err := tx.PrepareContext(ctx, `INSERT INTO requests (requestor, opened)
 SELECT users.id, ?
 FROM users
-WHERE users.slack_id = ?
+WHERE users.username = ?
 `)
 	if err != nil {
 		return nil, fmt.Errorf("error preparing request: %w", err)
