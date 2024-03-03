@@ -4,7 +4,6 @@ Package slack integrates the Backend and Scryfall into a Slack app.
 package slack
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"os"
@@ -67,24 +66,6 @@ func (s *Server) Serve() error {
 				cmd, ok := event.Data.(slack.SlashCommand)
 				if !ok {
 					log.Printf("SlashCommand not a SlashCommand")
-					continue
-				}
-
-				_, err := s.Backend.AddUserIfNotExist(context.Background(), cmd.UserID)
-				if err != nil {
-					payload := map[string]interface{}{
-						"blocks": []slack.Block{
-							slack.NewSectionBlock(
-								&slack.TextBlockObject{
-									Type: slack.PlainTextType,
-									Text: fmt.Sprintf("Sorry, failed to add user <@%s>", cmd.UserID),
-								},
-								nil,
-								nil,
-							),
-						},
-					}
-					s.Client.Ack(*event.Request, payload)
 					continue
 				}
 
